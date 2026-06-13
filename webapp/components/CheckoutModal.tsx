@@ -9,12 +9,13 @@ interface CheckoutModalProps {
   theme: 'dark' | 'light';
   totalPrice: number;
   lang: Language;
+  onConfirm?: (info: { paymentType: 'cash' | 'card' | 'installment'; details: string }) => void;
 }
 
 type CheckoutStep = 'select' | 'cash-details' | 'card-details' | 'installment-details' | 'success';
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ 
-  onClose, onCash, onInstallment, strings, theme, totalPrice, lang 
+  onClose, onCash, onInstallment, strings, theme, totalPrice, lang, onConfirm 
 }) => {
   const [step, setStep] = useState<CheckoutStep>('select');
   const [selectedOption, setSelectedOption] = useState<'cash' | 'card' | 'installment' | null>(null);
@@ -121,6 +122,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setStep('success');
     if (selectedOption === 'cash') onCash();
     if (selectedOption === 'installment') onInstallment();
+
+    // Adminga yuboriladigan buyurtma tafsilotini tayyorlaymiz (barcha to'lov turlari uchun, karta ham)
+    let details = '';
+    if (selectedOption === 'cash') {
+      details = `To'lov: Naqd (yetkazib berishda)\n🧾 Ism: ${fullName}\n📞 Tel: ${phone}\n📍 Manzil: ${address}`;
+    } else if (selectedOption === 'card') {
+      details = `To'lov: Karta orqali (online)\n💳 Karta egasi: ${cardHolder || '—'}`;
+    } else if (selectedOption === 'installment') {
+      details = `To'lov: Muddatli (${selectedMonths} oy)\n📆 Oylik: $${installmentDetails.monthly}\n💵 Jami (foiz bilan): $${installmentDetails.total}`;
+    }
+    if (selectedOption && onConfirm) {
+      onConfirm({ paymentType: selectedOption, details });
+    }
+
     setShowCelebration(true);
     if ((window as any).Telegram?.WebApp?.HapticFeedback) {
       (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');

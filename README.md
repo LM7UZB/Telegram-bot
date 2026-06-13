@@ -21,10 +21,10 @@ Tilla va kumush buyumlar onlayn bozori — **Telegram Mini App** (Telegram ichid
    - **Root Directory:** `webapp` (Edit tugmasi orqali tanlang)
    - Framework: **Vite** (avtomatik aniqlanadi)
 4. **Environment Variables** bo'limiga qo'shing:
-   | Nomi | Qiymat |
-   |------|--------|
-   | `BOT_TOKEN` | BotFather token |
-   | `ADMIN_CHAT_ID` | 2-qadamdagi Chat ID |
+   | Nomi | Majburiy | Qiymat |
+   |------|:---:|--------|
+   | `BOT_TOKEN` | ✅ | BotFather token |
+   | `ADMIN_CHAT_ID` | ➖ | Buyurtmalar keladigan chat. Bo'sh qoldirsangiz — asosiy admin `@LM7_UZB` (147775103) ga keladi |
 5. **Deploy** bosing. Tugagach sizga manzil beradi, masalan: `https://tillabazar.vercel.app`
 
 ### 4-qadam — BotFather'da "Do'konni ochish" tugmasini sozlang
@@ -53,6 +53,12 @@ Telegram  ──(Menu Button)──►  Vercel'dagi Web App (do'kon)
 
 - `webapp/` — React + Vite frontend (do'kon).
 - `webapp/api/notify.js` — Vercel serverless funksiyasi; formalarni Bot API orqali adminga yuboradi. **Bot tokeni faqat shu yerda (server tomonda) ishlatiladi — xavfsiz.**
+
+### 👑 Admin huquqlari
+- **Asosiy admin:** `@LM7_UZB` (Telegram ID `147775103`). Kod: `webapp/utils/telegram.ts` → `ADMIN_IDS`.
+- Adminga **hamma narsa** keladi: 🛒 buyurtmalar (naqd / karta / muddatli), 💎 yangi mahsulot qo'shish, 🔔 "bizga sotish" arizalari — har birida mijozning Telegram ismi, username va ID si bo'ladi.
+- **Faqat admin** narxlarni (kurslar) tahrirlay oladi. Oddiy foydalanuvchilarda bu tugma ko'rinmaydi.
+- Yangi admin qo'shish: `ADMIN_IDS` ro'yxatiga uning Telegram ID sini qo'shing.
 
 ---
 

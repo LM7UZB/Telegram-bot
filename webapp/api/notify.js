@@ -14,12 +14,13 @@ export default async function handler(req, res) {
   }
 
   const BOT_TOKEN = process.env.BOT_TOKEN;
-  const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
+  // ADMIN_CHAT_ID belgilanmasa, asosiy admin (@LM7_UZB) ga yuboriladi.
+  const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || '147775103';
 
-  if (!BOT_TOKEN || !ADMIN_CHAT_ID) {
+  if (!BOT_TOKEN) {
     return res.status(500).json({
       ok: false,
-      error: 'Server sozlanmagan: BOT_TOKEN yoki ADMIN_CHAT_ID yo\'q',
+      error: 'Server sozlanmagan: BOT_TOKEN yo\'q (Vercel Environment Variables ga qo\'shing)',
     });
   }
 

@@ -15,6 +15,7 @@ import { FilterDrawer } from './components/FilterDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { LoginModal } from './components/LoginModal';
 import { RatesModal } from './components/RatesModal';
+import { isAdminUser, customerInfoText, notifyAdmin } from './utils/telegram';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Category>('home');
@@ -62,9 +63,27 @@ const App: React.FC = () => {
   const [sort, setSort] = useState<SortOption>('none');
   const s = STRINGS[lang];
 
+  // Joriy foydalanuvchi admin (@LM7_UZB, 147775103) ekanligini aniqlaymiz
+  const isAdmin = useMemo(() => isAdminUser(), []);
+
   const showNotification = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
+  };
+
+  // Buyurtmani adminga (Telegram) yuborish — naqd, karta va muddatli to'lov uchun ham
+  const handleOrderConfirm = (info: { paymentType: 'cash' | 'card' | 'installment'; details: string }) => {
+    const pending = cart.filter(i => i.status === 'pending');
+    const itemsText = pending.length
+      ? pending.map((it, idx) => `${idx + 1}. ${it.product.title.uz} — $${it.product.price} (${it.product.store})`).join('\n')
+      : '—';
+    const total = pending.reduce((sum, it) => sum + it.product.price, 0);
+    const msg = `🛒 YANGI BUYURTMA\n${customerInfoText()}\n————————————\n📦 Mahsulotlar:\n${itemsText}\n\n💰 Jami: $${total}\n💳 ${info.details}`;
+    notifyAdmin(msg);
+    // Buyurtma qilingan mahsulotlarni "ordered" deb belgilaymiz (karta to'lovi uchun ham)
+    setCart(prev => prev.map(item => item.status === 'pending'
+      ? { ...item, status: 'ordered', orderDate: new Date().toLocaleDateString('ru-RU') }
+      : item));
   };
 
   const addToCart = (p: Product, e?: any) => {
@@ -487,11 +506,12 @@ const App: React.FC = () => {
           theme={theme} 
           totalPrice={cart.filter(item => item.status === 'pending').reduce((sum, item) => sum + item.product.price, 0) || 850}
           lang={lang}
+          onConfirm={handleOrderConfirm}
         />
       )}
       {isSellModalOpen && <SellModal onClose={() => setSellModalOpen(false)} strings={s} theme={theme} account={account} lang={lang} />}
       {isLoginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLogin={setAccount} strings={s} theme={theme} lang={lang} />}
-      {isRatesOpen && <RatesModal onClose={() => setIsRatesOpen(false)} theme={theme} lang={lang} />}
+      {isRatesOpen && <RatesModal onClose={() => setIsRatesOpen(false)} theme={theme} lang={lang} isAdmin={isAdmin} />}
     </div>
   );
 };

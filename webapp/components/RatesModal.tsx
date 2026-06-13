@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { REGIONS, IMG_API_KEY } from '../constants';
+import { notifyAdmin, customerInfoText } from '../utils/telegram';
 
 interface MetalRate {
   id: string;
@@ -13,6 +14,7 @@ interface RatesModalProps {
   onClose: () => void;
   theme: 'dark' | 'light';
   lang: 'uz' | 'ru' | 'en';
+  isAdmin?: boolean;
 }
 
 const DEFAULT_RATES: MetalRate[] = [
@@ -24,7 +26,7 @@ const DEFAULT_RATES: MetalRate[] = [
   { id: 's999', metal: 'silver', proba: '999 (Chorva)', sellPrice: 1.8, buyPrice: 1.3 },
 ];
 
-export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang }) => {
+export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, isAdmin = false }) => {
   const [rates, setRates] = useState<MetalRate[]>(() => {
     const saved = localStorage.getItem('tilla_bazar_metal_rates');
     return saved ? JSON.parse(saved) : DEFAULT_RATES;
@@ -82,14 +84,10 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang }) 
     }
 
     const typeLabel = userSellForm.metalType === 'gold' ? (lang === 'uz' ? 'Oltin' : 'Золото') : (lang === 'uz' ? 'Kumush' : 'Серебро');
-    const msg = `🔔 BIZGA SOTISH ARIZASI (BUYBACK REQUEST)\n📞 Telefon: ${userSellForm.phone}\n📍 Hudud: ${userSellForm.location}\n⚖️ Buyum og'irligi: ${userSellForm.weight} gr\n💎 Metall: ${typeLabel} (${userSellForm.proba})\n📝 Ma'lumot: ${userSellForm.desc || "Kiritilmagan"}\n🖼 Mahsulot rasmi: ${userSellForm.img}`;
+    const msg = `🔔 BIZGA SOTISH ARIZASI (BUYBACK)\n${customerInfoText()}\n————————————\n📞 Telefon: ${userSellForm.phone}\n📍 Hudud: ${userSellForm.location}\n⚖️ Buyum og'irligi: ${userSellForm.weight} gr\n💎 Metall: ${typeLabel} (${userSellForm.proba})\n📝 Ma'lumot: ${userSellForm.desc || "Kiritilmagan"}\n🖼 Mahsulot rasmi: ${userSellForm.img}`;
 
-    // Arizani serverless funksiyaga (Vercel /api/notify) yuboramiz -> u adminga jo'natadi.
-    fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'buyback_request', text: msg }),
-    }).catch((err) => console.error('Yuborishda xatolik:', err));
+    // Adminga yuboramiz (Vercel /api/notify orqali, server kerak emas).
+    notifyAdmin(msg);
 
     setIsUserSubmitted(true);
     if ((window as any).Telegram?.WebApp?.HapticFeedback) {
@@ -684,7 +682,8 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang }) 
           )}
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons — faqat admin narxlarni tahrirlay oladi */}
+        {isAdmin && (
         <div className="flex gap-2 relative z-10">
           {isEditing ? (
             <>
@@ -728,6 +727,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang }) 
             </button>
           )}
         </div>
+        )}
       </div>
     </div>
   );
