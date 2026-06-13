@@ -84,10 +84,14 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
     // Magazin nomi endi accountdan olinadi!
     const msg = `💎 YANGI MAHSULOT:\n🏢 Do'kon: ${account.storeName || 'Rich Emirates'}\n📂 Kategoriya: ${form.cat.toUpperCase()}\n🏷 Nomi: ${form.title}\n💵 Narxi: ${form.price} $\n⚖️ Vazni: ${form.gram} gr\n🔬 Proba: ${form.proba} (${karat})\n📍 Hudud: ${form.location}\n📝 Tavsif: ${form.desc}\n🖼 Rasm: ${form.img}`;
     
-    if ((window as any).Telegram?.WebApp?.sendData) {
-      (window as any).Telegram.WebApp.sendData(msg);
-    }
-    
+    // Arizani serverless funksiyaga (Vercel /api/notify) yuboramiz -> u adminga jo'natadi.
+    // Server kerak emas. sendData() ishlatmaymiz, chunki u ilovani darrov yopib yuboradi.
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'sell_product', text: msg }),
+    }).catch((err) => console.error('Yuborishda xatolik:', err));
+
     setIsSent(true);
     if ((window as any).Telegram?.WebApp?.HapticFeedback) {
       (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');

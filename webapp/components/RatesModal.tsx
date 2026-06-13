@@ -84,9 +84,12 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang }) 
     const typeLabel = userSellForm.metalType === 'gold' ? (lang === 'uz' ? 'Oltin' : 'Золото') : (lang === 'uz' ? 'Kumush' : 'Серебро');
     const msg = `🔔 BIZGA SOTISH ARIZASI (BUYBACK REQUEST)\n📞 Telefon: ${userSellForm.phone}\n📍 Hudud: ${userSellForm.location}\n⚖️ Buyum og'irligi: ${userSellForm.weight} gr\n💎 Metall: ${typeLabel} (${userSellForm.proba})\n📝 Ma'lumot: ${userSellForm.desc || "Kiritilmagan"}\n🖼 Mahsulot rasmi: ${userSellForm.img}`;
 
-    if ((window as any).Telegram?.WebApp?.sendData) {
-      (window as any).Telegram.WebApp.sendData(msg);
-    }
+    // Arizani serverless funksiyaga (Vercel /api/notify) yuboramiz -> u adminga jo'natadi.
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'buyback_request', text: msg }),
+    }).catch((err) => console.error('Yuborishda xatolik:', err));
 
     setIsUserSubmitted(true);
     if ((window as any).Telegram?.WebApp?.HapticFeedback) {
