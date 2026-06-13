@@ -1,0 +1,18 @@
+# Render.com uchun Blueprint.
+# Render'da "New +" -> "Blueprint" -> shu repo'ni tanlang.
+# Keyin BOT_TOKEN, WEBAPP_URL, ADMIN_CHAT_ID qiymatlarini kiriting.
+services:
+  - type: web
+    name: tillabazar-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: WEBAPP_URL
+        sync: false
+      - key: ADMIN_CHAT_ID
+        sync: false

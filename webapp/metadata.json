@@ -1,0 +1,10 @@
+{
+  "name": "TillaBazar Glass Edition",
+  "description": "A luxury gold and silver marketplace with a modern glassmorphism UI, integrated with Gemini AI for jewelry assistance.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "tillabazar-telegram-bot",
+  "version": "1.0.0",
+  "description": "TillaBazar Telegram Mini App + grammY bot (bitta servis)",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "install:webapp": "npm --prefix webapp install",
+    "build": "npm --prefix webapp install && npm --prefix webapp run build",
+    "start": "node server.js",
+    "dev:webapp": "npm --prefix webapp run dev"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "grammy": "^1.30.0"
+  }
+}
