@@ -33,6 +33,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isOrdersOpen, setOrdersOpen] = useState(false);
   const [isFavsOpen, setFavsOpen] = useState(false);
 
+  // Markaziy Bank (CBU) jonli USD kursi
+  const [usd, setUsd] = useState<{ rate: string; diff: string } | null>(null);
+  useEffect(() => {
+    fetch('/api/rates')
+      .then((r) => r.json())
+      .then((d) => { if (d?.ok) setUsd({ rate: d.rate, diff: d.diff }); })
+      .catch(() => {});
+  }, []);
+  const usdDiffNum = usd ? parseFloat(usd.diff) : 0;
+  const usdUp = usdDiffNum >= 0;
+
   useEffect(() => {
     if (isEditOpen) {
       setTempAccount({ ...account });
@@ -379,12 +390,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <div className="flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-2">
               <div className="flex items-baseline gap-1">
-                <span className={`text-[21px] font-black ${textColor} tracking-tight font-sans`}>12 014,48</span>
+                <span className={`text-[21px] font-black ${textColor} tracking-tight font-sans`}>
+                  {usd ? Number(usd.rate).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                </span>
                 <span className="text-[10px] text-gray-400 font-bold uppercase">{lang === 'uz' ? "so'm" : lang === 'ru' ? "сум" : "so'm"}</span>
               </div>
-              <div className="bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-400 px-2.5 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1 shadow-sm">
-                <i className="fas fa-arrow-down text-[8px]"></i>
-                <span>-39.55</span>
+              <div className={`${usdUp ? 'bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400'} px-2.5 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1 shadow-sm`}>
+                <i className={`fas ${usdUp ? 'fa-arrow-up' : 'fa-arrow-down'} text-[8px]`}></i>
+                <span>{usd ? (usdUp ? '+' : '') + usd.diff : '0'}</span>
               </div>
             </div>
           </div>

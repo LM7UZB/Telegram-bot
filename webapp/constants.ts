@@ -10,7 +10,7 @@ export const REGIONS = [
 export const STORE_ACCOUNTS = [
   { user: 'fonon_admin', pass: '1234', store: 'Fonon' },
   { user: 'zarb_owner', pass: '7777', store: 'Zarbazzar' },
-  { user: 'LM_Gold', pass: 'Lazizbek', store: 'LM Gold' },
+  { user: 'LM_Gold', pass: 'Lazizbek777', store: 'LM Gold' },
   { user: 'adham_z', pass: 'adham77', store: 'Adham Zargar' },
   { user: 'akzar_admin', pass: 'akzar99', store: 'Akzar' },
   { user: 'chorsu_gold', pass: 'center01', store: 'Chorsu Gold Center' },
