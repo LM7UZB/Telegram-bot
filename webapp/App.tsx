@@ -17,7 +17,7 @@ import { LoginModal } from './components/LoginModal';
 import { RatesModal } from './components/RatesModal';
 import { isAdminUser, customerInfoText, notifyAdmin } from './utils/telegram';
 import { AdminReviewModal } from './components/AdminReviewModal';
-import { fetchApprovedProducts } from './utils/api';
+import { fetchApprovedProducts, markSold } from './utils/api';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Category>('home');
@@ -94,6 +94,10 @@ const App: React.FC = () => {
     const total = pending.reduce((sum, it) => sum + it.product.price, 0);
     const msg = `🛒 YANGI BUYURTMA\n${customerInfoText()}\n————————————\n📦 Mahsulotlar:\n${itemsText}\n\n💰 Jami: $${total}\n💳 ${info.details}`;
     notifyAdmin(msg);
+    // Buyurtma qilingan mahsulotlarni sotilgan deb belgilaymiz -> ro'yxatdan yo'qoladi
+    const orderedIds = pending.map(i => i.product.id);
+    setSoldProductIds(prev => Array.from(new Set([...prev, ...orderedIds])));
+    markSold(orderedIds).then(() => loadProducts());
     // Buyurtma qilingan mahsulotlarni "ordered" deb belgilaymiz (karta to'lovi uchun ham)
     setCart(prev => prev.map(item => item.status === 'pending'
       ? { ...item, status: 'ordered', orderDate: new Date().toLocaleDateString('ru-RU') }

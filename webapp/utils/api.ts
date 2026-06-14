@@ -116,3 +116,33 @@ export async function reviewProduct(
     return { ok: false, error: String(e) };
   }
 }
+
+/** Admin: mahsulotni tahrirlash (kamchiliklarni to'g'rilash). */
+export async function updateProduct(
+  id: number,
+  product: any
+): Promise<{ ok: boolean; products?: any[]; error?: string }> {
+  try {
+    const res = await fetch('/api/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ id, action: 'update', product }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/** Buyurtma berilgan mahsulotlarni "sotilgan" deb belgilaydi (ro'yxatdan yo'qoladi). */
+export async function markSold(ids: number[]): Promise<void> {
+  try {
+    await fetch('/api/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+  } catch {
+    /* jim */
+  }
+}
