@@ -1,33 +1,39 @@
 // Vercel Blob — katta fayllar (1 daqiqagacha video) uchun to'g'ridan-to'g'ri (client) yuklash tokeni.
 // Klient @vercel/blob/client orqali shu endpointga ulanib, faylni to'g'ridan Blob'ga yuklaydi.
-//
-// MUHIM: Ishlashi uchun Vercel'da Blob store yaratilgan VA loyihaga ulangan bo'lishi kerak.
-//        Ulangach loyihani QAYTA DEPLOY qiling (env BLOB_READ_WRITE_TOKEN shunda qo'shiladi).
-//
-// Tekshirish: brauzerda /api/blob-upload ni oching -> {"blobConfigured": true} bo'lishi kerak.
 
 import { handleUpload } from '@vercel/blob/client';
 
-export default async function handler(req, res) {
-  const hasToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+// BLOB tokenini har qanday nom bilan topadi (BLOB_READ_WRITE_TOKEN yoki prefiksli variant)
+function findBlobToken() {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (k.includes('BLOB') && k.includes('TOKEN') && v) return v;
+  }
+  return null;
+}
 
-  // Diagnostika: Blob ulanganmi yoki yo'q
+export default async function handler(req, res) {
+  const token = findBlobToken();
+
+  // Diagnostika
   if (req.method === 'GET') {
+    const blobEnvKeys = Object.keys(process.env).filter((k) => k.includes('BLOB'));
     return res.status(200).json({
       ok: true,
-      blobConfigured: hasToken,
-      hint: hasToken
-        ? "Blob ulangan — video yuklash ishlashi kerak."
-        : "Blob ulanmagan: Vercel -> Storage -> Blob yarating, loyihaga ulang va QAYTA DEPLOY qiling.",
+      blobConfigured: !!token,
+      blobEnvKeys,
+      hint: token
+        ? 'Blob ulangan — video yuklash ishlashi kerak.'
+        : 'Blob kaliti topilmadi: Storage -> Blob -> loyihaga ulang va QAYTA DEPLOY qiling.',
     });
   }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  if (!hasToken) {
+  if (!token) {
     return res.status(500).json({
-      error: "Blob store ulanmagan. Vercel -> Storage -> Blob yarating, loyihaga ulang va qayta deploy qiling.",
+      error: "Blob store ulanmagan (kalit topilmadi). Vercel -> Storage -> Blob -> loyihaga ulang va qayta deploy qiling.",
     });
   }
 
@@ -36,6 +42,7 @@ export default async function handler(req, res) {
 
   try {
     const jsonResponse = await handleUpload({
+      token,
       body,
       request: req,
       onBeforeGenerateToken: async () => ({
@@ -43,7 +50,7 @@ export default async function handler(req, res) {
           'video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/3gpp',
           'image/jpeg', 'image/png', 'image/webp',
         ],
-        maximumSizeInBytes: 200 * 1024 * 1024, // 200 MB (1 daqiqagacha video uchun yetarli)
+        maximumSizeInBytes: 200 * 1024 * 1024,
       }),
       onUploadCompleted: async () => {},
     });
