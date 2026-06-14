@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Language, UIStrings, Product, CartItem } from '../types';
 import { ADMIN_TELEGRAM, IMG_API_KEY, PRODUCTS } from '../constants';
+import { fetchMyProducts } from '../utils/api';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ interface SidebarProps {
   setLang: (l: Language) => void;
   onSellClick: () => void;
   onLoginClick: () => void;
+  isAdmin?: boolean;
+  onAdminPanel?: () => void;
   strings: UIStrings;
   wishlist: number[];
   onWishlistToggle: (id: number) => void;
@@ -23,7 +26,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, onClose, account, setAccount, theme, setTheme, lang, setLang, onSellClick, onLoginClick, strings,
-  wishlist, onWishlistToggle, cart, onAddToCart, onProductClick
+  wishlist, onWishlistToggle, cart, onAddToCart, onProductClick, isAdmin = false, onAdminPanel
 }) => {
   const [isEditOpen, setEditOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -43,6 +46,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, []);
   const usdDiffNum = usd ? parseFloat(usd.diff) : 0;
   const usdUp = usdDiffNum >= 0;
+
+  // Sotuvchining o'z mahsulotlari (status bilan) — faqat sotuvchilar uchun
+  const [myProducts, setMyProducts] = useState<any[]>([]);
+  useEffect(() => {
+    if (isOpen && account.isOwner && !isAdmin && account.storeName) {
+      fetchMyProducts(account.storeName).then(setMyProducts).catch(() => {});
+    }
+  }, [isOpen, account.isOwner, account.storeName, isAdmin]);
+
+  // Rol yorlig'i: Admin / Sotuvchi / Mijoz
+  const roleBadge = isAdmin
+    ? { text: 'ADMIN', icon: '👑', cls: 'bg-[#d4af37] text-black' }
+    : account.isOwner
+    ? { text: 'SOTUVCHI', icon: '🏪', cls: 'bg-green-500/20 text-green-500' }
+    : { text: 'MIJOZ', icon: '👤', cls: 'bg-white/10 text-gray-300' };
+
+  const statusMeta: Record<string, { icon: string; label: string; cls: string }> = {
+    pending: { icon: '🟡', label: 'Kutilmoqda', cls: 'text-yellow-500 bg-yellow-500/15' },
+    approved: { icon: '🟢', label: 'Tasdiqlangan', cls: 'text-green-500 bg-green-500/15' },
+    rejected: { icon: '🔴', label: 'Rad etilgan', cls: 'text-red-500 bg-red-500/15' },
+  };
 
   useEffect(() => {
     if (isEditOpen) {
@@ -163,7 +187,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               
               {/* Text stack */}
               <div className="text-left">
-                <h4 className={`text-sm font-black ${textColor} leading-tight`}>{account.name}</h4>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h4 className={`text-sm font-black ${textColor} leading-tight`}>{isAdmin ? 'Admin' : account.name}</h4>
+                  <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${roleBadge.cls}`}>
+                    {roleBadge.icon} {roleBadge.text}
+                  </span>
+                </div>
                 <p className="text-[9px] text-[#d4af37] font-bold tracking-wider uppercase">{account.username}</p>
                 {account.phone && <p className="text-[8px] text-gray-500 font-bold">{account.phone}</p>}
               </div>
@@ -181,6 +210,65 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Admin paneli — faqat admin (@LM7_UZB) ko'radi */}
+        {isAdmin && (
+          <div className="px-5 mb-4 animate-fade-in">
+            <button
+              onClick={() => onAdminPanel && onAdminPanel()}
+              className="w-full flex items-center justify-between p-4 bg-[#d4af37] text-black rounded-[24px] active:scale-95 transition-all shadow-lg shadow-[#d4af37]/20"
+            >
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 bg-black/10 rounded-2xl flex items-center justify-center">
+                  <i className="fas fa-shield-halved text-lg"></i>
+                </div>
+                <div>
+                  <div className="font-black text-sm uppercase tracking-tight">Admin panel</div>
+                  <div className="text-[8px] font-black text-black/50 uppercase tracking-widest mt-0.5">Mahsulotlarni tasdiqlash</div>
+                </div>
+              </div>
+              <i className="fas fa-chevron-right text-sm"></i>
+            </button>
+          </div>
+        )}
+
+        {/* Sotuvchi mahsulotlari + holatlari — faqat sotuvchilar ko'radi */}
+        {account.isOwner && !isAdmin && (
+          <div className="px-5 mb-4 animate-fade-in">
+            <div className={`${itemBg} rounded-[24px] border p-4 shadow-sm`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#d4af37]">
+                  <span>🏷</span>
+                  <span>{lang === 'uz' ? 'Mening mahsulotlarim' : lang === 'ru' ? 'Мои товары' : 'My products'}</span>
+                </div>
+                <span className="bg-[#d4af37]/20 text-[#d4af37] text-[8px] px-1.5 py-0.5 rounded-full font-black">{myProducts.length}</span>
+              </div>
+              {myProducts.length === 0 ? (
+                <p className="text-[10px] text-gray-500 font-bold text-center py-3">
+                  {lang === 'uz' ? "Hali mahsulot yo'q. \"Sotish\" orqali qo'shing." : 'Пока нет товаров.'}
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-[240px] overflow-y-auto scrollbar-none">
+                  {myProducts.map((p) => {
+                    const st = statusMeta[p.status || 'pending'];
+                    return (
+                      <div key={p.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-black/5 dark:bg-white/[0.03]">
+                        <img src={p.img} referrerPolicy="no-referrer" alt="" className="w-10 h-10 rounded-lg object-cover flex-none" />
+                        <div className="flex-1 min-w-0">
+                          <h5 className={`text-[11px] font-black truncate ${textColor}`}>{p.title?.uz || p.title}</h5>
+                          <p className="text-[9px] text-gray-400 font-bold">{p.price}$ · {p.proba}</p>
+                        </div>
+                        <span className={`text-[7px] font-black px-1.5 py-1 rounded-full uppercase tracking-wider whitespace-nowrap ${st.cls}`}>
+                          {st.icon} {st.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Interactive Accordion Menus (My Orders & Favorites inside Profile menu) */}
         <div className="px-5 mb-4 space-y-3 animate-fade-in">

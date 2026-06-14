@@ -497,6 +497,8 @@ const App: React.FC = () => {
         setLang={setLang} 
         onSellClick={() => { setSellModalOpen(true); setSidebarOpen(false); }} 
         onLoginClick={() => { setLoginModalOpen(true); setSidebarOpen(false); }}
+        isAdmin={isAdmin}
+        onAdminPanel={() => { setAdminPanelOpen(true); setSidebarOpen(false); }}
         strings={s} 
         wishlist={wishlist}
         onWishlistToggle={toggleWishlist}
@@ -527,16 +529,6 @@ const App: React.FC = () => {
       {isLoginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLogin={setAccount} strings={s} theme={theme} lang={lang} />}
       {isRatesOpen && <RatesModal onClose={() => setIsRatesOpen(false)} theme={theme} lang={lang} isAdmin={isAdmin} />}
 
-      {/* Admin uchun suzuvchi tugma — faqat @LM7_UZB ko'radi */}
-      {isAdmin && (
-        <button
-          onClick={() => setAdminPanelOpen(true)}
-          className="fixed bottom-28 right-4 z-[120] w-14 h-14 rounded-full bg-[#d4af37] text-black shadow-[0_8px_24px_rgba(212,175,55,0.5)] flex items-center justify-center active:scale-90 transition-transform"
-          title="Admin panel"
-        >
-          <i className="fas fa-shield-halved text-lg"></i>
-        </button>
-      )}
       {isAdminPanelOpen && (
         <AdminReviewModal
           onClose={() => setAdminPanelOpen(false)}

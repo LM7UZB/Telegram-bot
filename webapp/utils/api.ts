@@ -43,6 +43,17 @@ export async function submitProduct(product: any): Promise<{ ok: boolean; error?
   }
 }
 
+/** Sotuvchining o'z mahsulotlari (har qanday holatda — status bilan). */
+export async function fetchMyProducts(store: string): Promise<any[]> {
+  try {
+    const res = await fetch(`/api/products?scope=mine&store=${encodeURIComponent(store)}`);
+    const data = await res.json();
+    return data?.ok ? data.products : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Admin: mahsulotni tasdiqlash / rad etish / o'chirish. */
 export async function reviewProduct(
   id: number,

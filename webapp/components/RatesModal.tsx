@@ -54,20 +54,21 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
     if (!file) return;
     setIsUserUploading(true);
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("source", file);
     try {
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMG_API_KEY}`, {
+      const res = await fetch(`https://freeimage.host/api/1/upload?key=${IMG_API_KEY}&format=json`, {
         method: "POST",
         body: formData
       });
       const data = await res.json();
-      if (data.success && data.data?.url) {
-        setUserSellForm(prev => ({ ...prev, img: data.data.url }));
+      const url = data?.image?.url || data?.image?.display_url;
+      if (data?.status_code === 200 && url) {
+        setUserSellForm(prev => ({ ...prev, img: url }));
         if ((window as any).Telegram?.WebApp?.HapticFeedback) {
           (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
       } else {
-        const reason = data?.error?.message || 'rasm xizmati kalitini tekshiring (IMG_API_KEY)';
+        const reason = data?.error?.message || data?.status_txt || 'rasm xizmati xatosi';
         alert((lang === 'uz' ? "Rasm yuklanmadi: " : "Изображение не загружено: ") + reason);
       }
     } catch (err) {
