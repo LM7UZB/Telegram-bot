@@ -60,11 +60,15 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
         body: formData
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data?.url) {
         setForm(prev => ({ ...prev, img: data.data.url }));
         if ((window as any).Telegram?.WebApp?.HapticFeedback) {
           (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
+      } else {
+        // Yuklash muvaffaqiyatsiz — sababini ko'rsatamiz (ko'pincha kalit muammosi)
+        const reason = data?.error?.message || 'rasm xizmati kalitini tekshiring (IMG_API_KEY)';
+        alert((lang === 'uz' ? "Rasm yuklanmadi: " : lang === 'ru' ? "Изображение не загружено: " : "Upload failed: ") + reason);
       }
     } catch (err) {
       alert(lang === 'uz' ? "Rasm yuklashda xatolik yuz berdi" : lang === 'ru' ? "Ошибка при загрузке изображения" : "Error uploading image");
@@ -148,7 +152,7 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
                       <i className="fas fa-circle-notch fa-spin text-2xl text-[#d4af37]"></i>
                     </div>
                   ) : form.img ? (
-                    <img src={form.img} className="w-full h-full object-cover" />
+                    <img src={form.img} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   ) : (
                     <div className="text-center">
                       <i className="fas fa-cloud-upload-alt text-[#d4af37] text-xl mb-2"></i>

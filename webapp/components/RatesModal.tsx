@@ -61,11 +61,14 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
         body: formData
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data?.url) {
         setUserSellForm(prev => ({ ...prev, img: data.data.url }));
         if ((window as any).Telegram?.WebApp?.HapticFeedback) {
           (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
+      } else {
+        const reason = data?.error?.message || 'rasm xizmati kalitini tekshiring (IMG_API_KEY)';
+        alert((lang === 'uz' ? "Rasm yuklanmadi: " : "Изображение не загружено: ") + reason);
       }
     } catch (err) {
       alert(lang === 'uz' ? "Rasm yuklashda xatolik yuz berdi" : "Ошибка загрузки изображения");

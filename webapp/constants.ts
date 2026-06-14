@@ -433,5 +433,5 @@ export const STRINGS: Record<Language, UIStrings> = {
 };
 
 export const ADMIN_TELEGRAM = "https://t.me/Rich_Emirates";
-export const IMG_API_KEY = "6d207e02198a847aa98d0a2a901485a5";
+export const IMG_API_KEY = ((import.meta as any)?.env?.VITE_IMG_API_KEY as string) || "6d207e02198a847aa98d0a2a901485a5";
 export const UZUM_LINK = "https://uzum.uz/";
