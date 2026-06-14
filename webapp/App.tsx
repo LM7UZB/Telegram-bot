@@ -313,7 +313,7 @@ const App: React.FC = () => {
       <main className="animate-fade-in pb-32">
         {currentPage === 'home' && (
           <>
-            <AdSlider onBannerClick={(target) => target.type === 'store' ? handleStoreSelect(target.value) : setCurrentPage(target.value as Category)} />
+            <AdSlider onBannerClick={(target) => target.type === 'store' ? handleStoreSelect(target.value) : setCurrentPage(target.value as Category)} isAdmin={isAdmin} />
             
             <div className="px-6 mt-10 mb-2 flex flex-col gap-4">
               <div className="flex items-center justify-between">

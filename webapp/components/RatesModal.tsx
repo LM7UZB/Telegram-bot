@@ -247,7 +247,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
       className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 backdrop-blur-xl bg-black/70 overflow-y-auto scrollbar-none"
     >
       <div 
-        className={`w-full max-w-lg rounded-3xl border border-[#d4af37]/45 p-5 sm:p-6 shadow-[0_25px_60px_rgba(212,175,55,0.25)] overflow-hidden relative transition-all duration-300 my-4 sm:my-auto ${
+        className={`w-full max-w-lg flex flex-col rounded-3xl border border-[#d4af37]/45 p-5 sm:p-6 shadow-[0_25px_60px_rgba(212,175,55,0.25)] overflow-hidden relative transition-all duration-300 my-4 sm:my-auto ${
           theme === 'dark' ? 'bg-[#15171e] text-white' : 'bg-white text-gray-900'
         }`}
         id="rates_modal_pane"
@@ -257,7 +257,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
         <div className="absolute bottom-[-30px] left-[-30px] w-32 h-32 bg-[#ffeed0]/5 rounded-full blur-3xl pointer-events-none"></div>
 
         {/* Modal Header */}
-        <div className="flex justify-between items-start mb-5 relative z-10">
+        <div className="flex justify-between items-start mb-5 relative z-10 order-1">
           <div className="pr-4">
             <h3 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-[#d4af37] via-[#fff2af] to-[#d4af37] bg-clip-text text-transparent drop-shadow-sm flex items-center gap-2">
               <i className="fas fa-coins text-gold-500 text-lg sm:text-xl animate-pulse"></i>
@@ -279,7 +279,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
         </div>
 
         {/* Metal Prices Grid / Table */}
-        <div className="space-y-3 mb-6 relative z-10">
+        <div className="space-y-3 mb-6 relative z-10 order-3">
           <div className={`grid grid-cols-3 text-[10px] font-black uppercase tracking-wider pb-1.5 border-b ${
             theme === 'dark' ? 'text-gray-400 border-white/10' : 'text-gray-500 border-gray-100'
           }`}>
@@ -358,7 +358,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
         </div>
 
         {/* Dynamic Premium Calculator widget - Enlarged, with distinct headers and transparent glass-morphic theme */}
-        <div className={`p-5 rounded-2xl mb-6 border relative z-10 transition-all duration-300 ${
+        <div className={`p-5 rounded-2xl mb-6 border relative z-10 order-4 transition-all duration-300 ${
           theme === 'dark' 
             ? 'bg-gradient-to-b from-white/[0.04] to-white/[0.01] border-white/10 shadow-[inner_0_1px_1px_rgba(255,255,255,0.05)]' 
             : 'bg-gradient-to-b from-gray-50 to-white border-gray-200/80 shadow-md'
@@ -444,7 +444,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
         </div>
 
         {/* Customer item buyback / sell back form - Integrated directly under calculator */}
-        <div className={`p-4 rounded-2xl mb-6 border relative z-10 transition-all duration-300 ${
+        <div className={`p-4 rounded-2xl mb-6 border relative z-10 order-2 transition-all duration-300 ${
           theme === 'dark' 
             ? 'bg-gradient-to-b from-[#181a20]/95 to-[#1c1e26]/95 border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.3)]' 
             : 'bg-gradient-to-b from-gray-50 to-white border-gray-200 shadow-md'
@@ -676,7 +676,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
 
         {/* Action Buttons — faqat admin narxlarni tahrirlay oladi */}
         {isAdmin && (
-        <div className="flex gap-2 relative z-10">
+        <div className="flex gap-2 relative z-10 order-5">
           {isEditing ? (
             <>
               <button 

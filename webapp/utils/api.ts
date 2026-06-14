@@ -157,3 +157,42 @@ export async function fetchOrders(): Promise<any[]> {
     return [];
   }
 }
+
+/** Bosh sahifa reklama bannerlari (hammaga). */
+export async function fetchBanners(): Promise<any[]> {
+  try {
+    const res = await fetch('/api/banners');
+    const data = await res.json();
+    return data?.ok ? data.banners : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Admin: yangi banner qo'shadi. */
+export async function addBanner(img: string, target?: any): Promise<{ ok: boolean; banners?: any[]; error?: string }> {
+  try {
+    const res = await fetch('/api/banners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'add', img, target }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/** Admin: bannerni o'chiradi. */
+export async function deleteBanner(id: number): Promise<{ ok: boolean; banners?: any[]; error?: string }> {
+  try {
+    const res = await fetch('/api/banners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'delete', id }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
