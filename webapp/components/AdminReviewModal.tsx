@@ -13,6 +13,7 @@ const STATUS_META: Record<string, { label: string; color: string; icon: string }
   pending: { label: 'Kutilmoqda', color: 'text-yellow-500 bg-yellow-500/15', icon: '🟡' },
   approved: { label: 'Tasdiqlangan', color: 'text-green-500 bg-green-500/15', icon: '🟢' },
   rejected: { label: 'Rad etilgan', color: 'text-red-500 bg-red-500/15', icon: '🔴' },
+  sold: { label: 'Sotilgan', color: 'text-blue-400 bg-blue-400/15', icon: '✅' },
 };
 
 export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onChanged, theme, lang }) => {
@@ -163,7 +164,7 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
             </div>
           ) : (
             filtered.map((p) => {
-              const meta = STATUS_META[p.status || 'pending'];
+              const meta = STATUS_META[p.status || 'pending'] || STATUS_META.pending;
               const isEditing = editId === p.id;
               return (
                 <div key={p.id} className={`${cardBg} border rounded-2xl p-3`}>

@@ -66,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     pending: { icon: '🟡', label: 'Kutilmoqda', cls: 'text-yellow-500 bg-yellow-500/15' },
     approved: { icon: '🟢', label: 'Tasdiqlangan', cls: 'text-green-500 bg-green-500/15' },
     rejected: { icon: '🔴', label: 'Rad etilgan', cls: 'text-red-500 bg-red-500/15' },
+    sold: { icon: '✅', label: 'Sotilgan', cls: 'text-blue-400 bg-blue-400/15' },
   };
 
   useEffect(() => {
@@ -241,7 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ) : (
                 <div className="space-y-2 max-h-[240px] overflow-y-auto scrollbar-none">
                   {myProducts.map((p) => {
-                    const st = statusMeta[p.status || 'pending'];
+                    const st = statusMeta[p.status as string] || statusMeta.pending;
                     return (
                       <div key={p.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-black/5 dark:bg-white/[0.03]">
                         <img src={p.img} referrerPolicy="no-referrer" alt="" className="w-10 h-10 rounded-lg object-cover flex-none" />
