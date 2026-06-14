@@ -62,7 +62,8 @@ export default async function handler(req, res) {
         store: p.store || "Do'kon",
         location: p.location || '',
         logo: '',
-        img: p.img,
+        img: p.img || (Array.isArray(p.images) ? p.images[0] : '') || '',
+        images: Array.isArray(p.images) && p.images.length ? p.images : (p.img ? [p.img] : []),
         status: 'pending',
         createdAt: new Date().toISOString(),
       };

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Product, UIStrings, Language } from '../types';
 
 interface ProductModalProps {
@@ -32,13 +32,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     ? 'fas fa-heart text-red-500 scale-110' 
     : (theme === 'light' ? 'far fa-heart text-gray-800' : 'far fa-heart text-white');
 
+  const images = product.images && product.images.length ? product.images : [product.img];
+  const [activeImg, setActiveImg] = useState(0);
+
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[60] flex items-end justify-center animate-fade-in" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`w-full max-h-[96vh] ${modalBg} rounded-t-[45px] border-t-2 border-[#d4af37] overflow-y-auto p-7 shadow-2xl animate-slide-up transition-colors`}>
         <div className="w-14 h-1.5 bg-gray-500/30 rounded-full mx-auto mb-8"></div>
         
-        <div className="relative mb-8">
-          <img src={product.img} alt={product.title[lang]} className="w-full h-[400px] object-cover rounded-[35px] shadow-2xl border border-white/5" />
+        <div className="relative mb-4">
+          <img src={images[activeImg] || images[0]} alt={product.title[lang]} className="w-full h-[400px] object-cover rounded-[35px] shadow-2xl border border-white/5" />
           
           <button 
             onClick={(e) => { e.stopPropagation(); onWishlistToggle(product.id); }}
@@ -51,6 +54,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             {product.proba} / {product.karat}
           </div>
         </div>
+
+        {images.length > 1 && (
+          <div className="flex gap-2 mb-8 overflow-x-auto scrollbar-none pb-1">
+            {images.map((im, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveImg(i)}
+                className={`flex-none w-16 h-16 rounded-2xl overflow-hidden border-2 transition-all active:scale-90 ${i === activeImg ? 'border-[#d4af37]' : 'border-transparent opacity-60'}`}
+              >
+                <img src={im} referrerPolicy="no-referrer" alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="space-y-6 mb-8">
           <h2 className={`text-2xl font-black ${textColor} leading-tight uppercase italic tracking-tighter`}>

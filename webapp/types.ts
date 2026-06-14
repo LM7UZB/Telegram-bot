@@ -24,6 +24,8 @@ export interface Product {
   location: string;
   logo: string;
   img: string;
+  images?: string[];
+  status?: 'pending' | 'approved' | 'rejected';
 }
 
 export interface StoreOwner {

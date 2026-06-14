@@ -4,6 +4,17 @@ import { UIStrings, Language, UserAccount } from '../types';
 import { REGIONS } from '../constants';
 import { submitProduct, uploadImage } from '../utils/api';
 
+// Mahsulot turlari — bosh menudagi kategoriyalar bilan bir xil (uzuk, soat va h.k.)
+const PRODUCT_TYPES = [
+  { id: 'uzuk', label: { uz: 'Uzuk', ru: 'Кольцо', en: 'Ring' } },
+  { id: 'zirak', label: { uz: "Zirak / Sirg'a", ru: 'Серьги', en: 'Earrings' } },
+  { id: 'sepochka', label: { uz: 'Sepochka / Zanjir', ru: 'Цепочка', en: 'Chain' } },
+  { id: 'braslet', label: { uz: 'Braslet', ru: 'Браслет', en: 'Bracelet' } },
+  { id: 'kulon', label: { uz: 'Kulon', ru: 'Кулон', en: 'Pendant' } },
+  { id: 'komplekt', label: { uz: "To'plam", ru: 'Комплект', en: 'Set' } },
+  { id: 'soat', label: { uz: 'Soat', ru: 'Часы', en: 'Watch' } },
+] as const;
+
 interface SellModalProps {
   onClose: () => void;
   strings: UIStrings;
@@ -15,13 +26,15 @@ interface SellModalProps {
 export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, account, lang }) => {
   const [form, setForm] = useState({ 
     cat: 'gold',
+    type: 'uzuk',
     title: '', 
     price: '', 
     gram: '', 
     proba: '585', 
     desc: '', 
     location: REGIONS[0], 
-    img: '' 
+    store: account.storeName || '',
+    images: [] as string[],
   });
   
   const [isUploading, setIsUploading] = useState(false);
@@ -51,11 +64,17 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (form.images.length >= 5) {
+      alert(lang === 'uz' ? "Ko'pi bilan 5 ta rasm yuklash mumkin" : "Максимум 5 фото");
+      e.target.value = '';
+      return;
+    }
     setIsUploading(true);
     const result = await uploadImage(file);
     setIsUploading(false);
+    e.target.value = '';
     if (result.ok && result.url) {
-      setForm(prev => ({ ...prev, img: result.url as string }));
+      setForm(prev => ({ ...prev, images: [...prev.images, result.url as string] }));
       if ((window as any).Telegram?.WebApp?.HapticFeedback) {
         (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
@@ -64,20 +83,24 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
     }
   };
 
+  const removeImage = (i: number) => {
+    setForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
+  };
+
   const handleSubmit = () => {
-    if (!form.title || !form.price || !form.img || !form.gram) {
+    if (!form.title || !form.price || form.images.length === 0 || !form.gram) {
       if ((window as any).Telegram?.WebApp?.HapticFeedback) {
         (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('error');
       }
-      return alert(lang === 'uz' ? "Iltimos, barcha majburiy maydonlarni to'ldiring!" : lang === 'ru' ? "Пожалуйста, заполните все обязательные поля!" : "Please fill in all required fields!");
+      return alert(lang === 'uz' ? "Iltimos, barcha majburiy maydonlarni to'ldiring (kamida 1 ta rasm)!" : lang === 'ru' ? "Пожалуйста, заполните все обязательные поля!" : "Please fill in all required fields!");
     }
 
     const karat = getKarat(form.proba);
 
     // Mahsulotni bazaga "kutilmoqda" holatida yuboramiz. Admin tasdiqlagach saytda ko'rinadi.
-    // Server (api/products) avtomatik adminni Telegram orqali xabardor qiladi.
     submitProduct({
       cat: form.cat,
+      type: form.type,
       title: form.title,
       price: form.price,
       gram: form.gram,
@@ -85,8 +108,9 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
       karat,
       desc: form.desc,
       location: form.location,
-      img: form.img,
-      store: account.storeName || 'Rich Emirates',
+      img: form.images[0],
+      images: form.images,
+      store: form.store || account.storeName || 'Rich Emirates',
     }).then((res) => {
       if (!res.ok) {
         alert((lang === 'uz' ? 'Yuborishda xatolik: ' : 'Ошибка: ') + (res.error || ''));
@@ -143,24 +167,65 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
                 </div>
               </div>
 
-              {/* Image Upload */}
+              {/* Mahsulot turi va Do'kon nomi */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={labelColor}>{lang === 'uz' ? 'Mahsulot turi' : lang === 'ru' ? 'Тип товара' : 'Type'}</label>
+                  <select
+                    className={`w-full ${inputBg} rounded-xl p-4 text-sm ${textColor} font-bold outline-none border border-transparent focus:border-[#d4af37]/50 appearance-none`}
+                    value={form.type}
+                    onChange={e => setForm({ ...form, type: e.target.value })}
+                  >
+                    {PRODUCT_TYPES.map(t => <option key={t.id} value={t.id}>{(t.label as any)[lang] || t.label.uz}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className={labelColor}>{lang === 'uz' ? "Do'kon nomi" : lang === 'ru' ? 'Магазин' : 'Store'}</label>
+                  <input
+                    type="text"
+                    placeholder={lang === 'uz' ? "Do'kon nomi" : 'Магазин'}
+                    className={`w-full ${inputBg} rounded-xl p-4 text-sm ${textColor} font-bold outline-none border border-transparent focus:border-[#d4af37]/50`}
+                    value={form.store}
+                    onChange={e => setForm({ ...form, store: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Rasmlar (5 tagacha) — mijozlar mahsulotni har tomondan ko'radi */}
               <div>
-                <label className={labelColor}>{strings.uploadImg}</label>
-                <label className={`block w-full h-40 border-2 border-dashed ${form.img ? 'border-green-500/50 bg-green-500/5' : 'border-[#d4af37]/30 hover:bg-[#d4af37]/5'} rounded-[30px] flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden relative group`}>
-                  {isUploading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <i className="fas fa-circle-notch fa-spin text-2xl text-[#d4af37]"></i>
+                <label className={labelColor}>{strings.uploadImg} ({form.images.length}/5)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {form.images.map((url, i) => (
+                    <div key={i} className="relative w-full aspect-square rounded-2xl overflow-hidden border border-[#d4af37]/30">
+                      <img src={url} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center text-[10px] active:scale-90"
+                      >
+                        <i className="fas fa-times"></i>
+                      </button>
+                      {i === 0 && (
+                        <span className="absolute bottom-1 left-1 bg-[#d4af37] text-black text-[6px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                          {lang === 'uz' ? 'Asosiy' : lang === 'ru' ? 'Главное' : 'Main'}
+                        </span>
+                      )}
                     </div>
-                  ) : form.img ? (
-                    <img src={form.img} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center">
-                      <i className="fas fa-cloud-upload-alt text-[#d4af37] text-xl mb-2"></i>
-                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">{strings.uploadImg}</span>
-                    </div>
+                  ))}
+                  {form.images.length < 5 && (
+                    <label className="w-full aspect-square border-2 border-dashed border-[#d4af37]/30 hover:bg-[#d4af37]/5 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all">
+                      {isUploading ? (
+                        <i className="fas fa-circle-notch fa-spin text-xl text-[#d4af37]"></i>
+                      ) : (
+                        <>
+                          <i className="fas fa-plus text-[#d4af37] text-lg"></i>
+                          <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-1">{lang === 'uz' ? 'Rasm' : 'Фото'}</span>
+                        </>
+                      )}
+                      <input type="file" hidden accept="image/*" onChange={handleUpload} />
+                    </label>
                   )}
-                  <input type="file" hidden accept="image/*" onChange={handleUpload} />
-                </label>
+                </div>
               </div>
 
               <div className="space-y-4">
