@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Language } from '../types';
-import { fetchAllProductsAdmin, reviewProduct, updateProduct } from '../utils/api';
+import { fetchAllProductsAdmin, reviewProduct, updateProduct, fetchOrders } from '../utils/api';
 
 interface AdminReviewModalProps {
   onClose: () => void;
@@ -22,6 +22,12 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [section, setSection] = useState<'review' | 'sales'>('review');
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [dateFrom, setDateFrom] = useState(todayStr);
+  const [dateTo, setDateTo] = useState(todayStr);
 
   const editInput = `w-full px-3 py-2 text-xs rounded-lg border font-bold focus:outline-none focus:border-[#d4af37] ${
     theme === 'dark' ? 'bg-black/40 border-white/10 text-white placeholder-gray-600' : 'bg-white border-gray-300 text-black placeholder-gray-400'
@@ -87,6 +93,22 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
     rejected: items.filter((p) => p.status === 'rejected').length,
   };
 
+  // Sotuvlar (statistika) bo'limi uchun
+  useEffect(() => {
+    if (section === 'sales' && !ordersLoaded) {
+      fetchOrders().then((o) => { setOrders(Array.isArray(o) ? o : []); setOrdersLoaded(true); });
+    }
+  }, [section, ordersLoaded]);
+
+  const fromTs = new Date(dateFrom + 'T00:00:00').getTime();
+  const toTs = new Date(dateTo + 'T23:59:59').getTime();
+  const salesInRange = orders.filter((o) => {
+    const t = new Date(o.date).getTime();
+    return t >= fromTs && t <= toTs;
+  });
+  const turnover = salesInRange.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const soldItems = salesInRange.flatMap((o) => (o.items || []).map((it: any) => ({ ...it, date: o.date })));
+
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-xl z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <div className={`w-full sm:max-w-lg ${bg} rounded-t-[32px] sm:rounded-[32px] border border-[#d4af37]/30 shadow-2xl max-h-[92vh] overflow-y-auto`}>
@@ -106,6 +128,14 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
           </button>
         </div>
 
+        {/* Bo'lim almashtirgich */}
+        <div className="flex gap-2 px-4 pt-4">
+          <button onClick={() => setSection('review')} className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border ${section === 'review' ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-white/10 text-gray-500'}`}>📦 Tasdiqlash</button>
+          <button onClick={() => setSection('sales')} className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border ${section === 'sales' ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-white/10 text-gray-500'}`}>📊 Sotuvlar</button>
+        </div>
+
+        {section === 'review' && (
+          <>
         {/* Tabs */}
         <div className="flex gap-2 p-4 sticky top-[72px] z-10 bg-inherit">
           {(['pending', 'approved', 'rejected'] as const).map((t) => (
@@ -143,6 +173,13 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
                         <span className="text-[10px] font-black text-[#d4af37] uppercase tracking-wider">✏️ Tahrirlash</span>
                         <button onClick={() => setEditId(null)} className="text-gray-400 text-xs"><i className="fas fa-times"></i></button>
                       </div>
+                      {(p.images && p.images.length ? p.images : [p.img]).filter(Boolean).length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+                          {(p.images && p.images.length ? p.images : [p.img]).filter(Boolean).map((im: string, idx: number) => (
+                            <img key={idx} src={im} referrerPolicy="no-referrer" alt="" className="w-24 h-24 rounded-xl object-cover flex-none border border-white/10" />
+                          ))}
+                        </div>
+                      )}
                       <input value={editForm.title || ''} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder="Nomi" className={editInput} />
                       <div className="grid grid-cols-2 gap-2">
                         <input type="number" value={editForm.price ?? ''} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="Narx $" className={editInput} />
@@ -201,6 +238,54 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
             })
           )}
         </div>
+          </>
+        )}
+
+        {/* Sotuvlar / Statistika */}
+        {section === 'sales' && (
+          <div className="p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1">Sanadan</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={editInput} />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1">Sanagacha</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={editInput} />
+              </div>
+            </div>
+
+            <div className="bg-[#d4af37]/10 border border-[#d4af37]/30 rounded-2xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Umumiy savdo (aylanma)</p>
+                <p className="text-2xl font-black text-[#d4af37]">${turnover}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sotuvlar</p>
+                <p className="text-2xl font-black">{salesInRange.length}</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Sotilgan mahsulotlar</p>
+              {soldItems.length === 0 ? (
+                <p className="text-center py-8 text-gray-500 text-xs font-bold uppercase tracking-widest">Bu davrda sotuv yo'q</p>
+              ) : (
+                <div className="space-y-2">
+                  {soldItems.map((it, i) => (
+                    <div key={i} className={`${cardBg} border rounded-xl p-2.5 flex items-center justify-between`}>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black truncate">{it.title}</p>
+                        <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wider">{it.store} · {new Date(it.date).toLocaleDateString('ru-RU')}</p>
+                      </div>
+                      <span className="text-sm font-black text-[#d4af37] flex-none ml-2">${it.price}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

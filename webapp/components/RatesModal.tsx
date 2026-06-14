@@ -76,7 +76,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
     }
 
     const typeLabel = userSellForm.metalType === 'gold' ? (lang === 'uz' ? 'Oltin' : 'Золото') : (lang === 'uz' ? 'Kumush' : 'Серебро');
-    const msg = `🔔 BIZGA SOTISH ARIZASI (BUYBACK)\n${customerInfoText()}\n————————————\n📞 Telefon: ${userSellForm.phone}\n📍 Hudud: ${userSellForm.location}\n⚖️ Buyum og'irligi: ${userSellForm.weight} gr\n💎 Metall: ${typeLabel} (${userSellForm.proba})\n📝 Ma'lumot: ${userSellForm.desc || "Kiritilmagan"}\n🖼 Mahsulot rasmi: ${userSellForm.img}`;
+    const msg = `#sotiladi\n🔔 BIZGA SOTISH ARIZASI\n${customerInfoText()}\n————————————\n📞 Telefon: ${userSellForm.phone}\n📍 Hudud: ${userSellForm.location}\n⚖️ Buyum og'irligi: ${userSellForm.weight} gr\n💎 Metall: ${typeLabel} (${userSellForm.proba})\n📝 Ma'lumot: ${userSellForm.desc || "Kiritilmagan"}\n🖼 Mahsulot rasmi: ${userSellForm.img}`;
 
     // Adminga yuboramiz (Vercel /api/notify orqali, server kerak emas).
     notifyAdmin(msg);

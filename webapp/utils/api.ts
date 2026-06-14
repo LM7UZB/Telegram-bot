@@ -134,15 +134,26 @@ export async function updateProduct(
   }
 }
 
-/** Buyurtma berilgan mahsulotlarni "sotilgan" deb belgilaydi (ro'yxatdan yo'qoladi). */
-export async function markSold(ids: number[]): Promise<void> {
+/** Buyurtmani yozadi: mahsulotlarni sotilgan qiladi + statistikaga qo'shadi. */
+export async function recordOrder(ids: number[], order: any): Promise<void> {
   try {
     await fetch('/api/order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids, order }),
     });
   } catch {
     /* jim */
+  }
+}
+
+/** Admin: barcha buyurtmalar (statistika uchun). */
+export async function fetchOrders(): Promise<any[]> {
+  try {
+    const res = await fetch('/api/order', { headers: { 'X-Telegram-Init-Data': initData() } });
+    const data = await res.json();
+    return data?.ok ? data.orders : [];
+  } catch {
+    return [];
   }
 }
