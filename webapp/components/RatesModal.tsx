@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { REGIONS, IMG_API_KEY } from '../constants';
+import { REGIONS } from '../constants';
 import { notifyAdmin, customerInfoText } from '../utils/telegram';
+import { uploadImage } from '../utils/api';
 
 interface MetalRate {
   id: string;
@@ -53,28 +54,15 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUserUploading(true);
-    const formData = new FormData();
-    formData.append("source", file);
-    try {
-      const res = await fetch(`https://freeimage.host/api/1/upload?key=${IMG_API_KEY}&format=json`, {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      const url = data?.image?.url || data?.image?.display_url;
-      if (data?.status_code === 200 && url) {
-        setUserSellForm(prev => ({ ...prev, img: url }));
-        if ((window as any).Telegram?.WebApp?.HapticFeedback) {
-          (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        }
-      } else {
-        const reason = data?.error?.message || data?.status_txt || 'rasm xizmati xatosi';
-        alert((lang === 'uz' ? "Rasm yuklanmadi: " : "Изображение не загружено: ") + reason);
+    const result = await uploadImage(file);
+    setIsUserUploading(false);
+    if (result.ok && result.url) {
+      setUserSellForm(prev => ({ ...prev, img: result.url as string }));
+      if ((window as any).Telegram?.WebApp?.HapticFeedback) {
+        (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
-    } catch (err) {
-      alert(lang === 'uz' ? "Rasm yuklashda xatolik yuz berdi" : "Ошибка загрузки изображения");
-    } finally {
-      setIsUserUploading(false);
+    } else {
+      alert((lang === 'uz' ? "Rasm yuklanmadi: " : "Изображение не загружено: ") + (result.error || ''));
     }
   };
 

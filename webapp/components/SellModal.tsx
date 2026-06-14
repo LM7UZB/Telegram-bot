@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { UIStrings, Language, UserAccount } from '../types';
-import { IMG_API_KEY, REGIONS } from '../constants';
-import { submitProduct } from '../utils/api';
+import { REGIONS } from '../constants';
+import { submitProduct, uploadImage } from '../utils/api';
 
 interface SellModalProps {
   onClose: () => void;
@@ -52,28 +52,15 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploading(true);
-    const formData = new FormData();
-    formData.append("source", file);
-    try {
-      const res = await fetch(`https://freeimage.host/api/1/upload?key=${IMG_API_KEY}&format=json`, {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      const url = data?.image?.url || data?.image?.display_url;
-      if (data?.status_code === 200 && url) {
-        setForm(prev => ({ ...prev, img: url }));
-        if ((window as any).Telegram?.WebApp?.HapticFeedback) {
-          (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        }
-      } else {
-        const reason = data?.error?.message || data?.status_txt || 'rasm xizmati xatosi';
-        alert((lang === 'uz' ? "Rasm yuklanmadi: " : lang === 'ru' ? "Изображение не загружено: " : "Upload failed: ") + reason);
+    const result = await uploadImage(file);
+    setIsUploading(false);
+    if (result.ok && result.url) {
+      setForm(prev => ({ ...prev, img: result.url as string }));
+      if ((window as any).Telegram?.WebApp?.HapticFeedback) {
+        (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
-    } catch (err) {
-      alert(lang === 'uz' ? "Rasm yuklashda xatolik yuz berdi" : lang === 'ru' ? "Ошибка при загрузке изображения" : "Error uploading image");
-    } finally {
-      setIsUploading(false);
+    } else {
+      alert((lang === 'uz' ? "Rasm yuklanmadi: " : lang === 'ru' ? "Изображение не загружено: " : "Upload failed: ") + (result.error || ''));
     }
   };
 

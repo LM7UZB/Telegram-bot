@@ -65,8 +65,8 @@ const App: React.FC = () => {
   const [sort, setSort] = useState<SortOption>('none');
   const s = STRINGS[lang];
 
-  // Joriy foydalanuvchi admin (@LM7_UZB, 147775103) ekanligini aniqlaymiz
-  const isAdmin = useMemo(() => isAdminUser(), []);
+  // Joriy foydalanuvchi admin (@LM7_UZB, 147775103) ekanligini aniqlaymiz (Telegram ID bo'yicha)
+  const isAdmin = isAdminUser();
 
   // Bazadan tasdiqlangan mahsulotlar (hammaga ko'rinadigan)
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
