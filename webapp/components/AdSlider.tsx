@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchBanners, addBanner, deleteBanner, uploadImage } from '../utils/api';
 
 interface Slide {
@@ -80,8 +80,24 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
     else alert(res.error || 'Xatolik');
   };
 
+  // Qo'lda surish (chap/o'ng)
+  const touchX = useRef(0);
+  const goNext = () => setIndex((p) => (slides.length ? (p + 1) % slides.length : 0));
+  const goPrev = () => setIndex((p) => (slides.length ? (p - 1 + slides.length) % slides.length : 0));
+  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    if (Math.abs(dx) > 50 && slides.length > 1) {
+      if (dx < 0) goNext(); else goPrev();
+    }
+  };
+
   return (
-    <div className="relative h-80 m-4 rounded-[40px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)] group cursor-pointer transition-all">
+    <div
+      className="relative h-80 m-4 rounded-[40px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)] group cursor-pointer transition-all"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <div className="absolute inset-0 z-0 bg-white/5 backdrop-blur-sm"></div>
 
       {slides.map((slide, i) => (
@@ -129,6 +145,17 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
             </button>
           )}
         </div>
+      )}
+
+      {slides.length > 1 && (
+        <>
+          <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/40 backdrop-blur text-white flex items-center justify-center active:scale-90 transition-transform">
+            <i className="fas fa-chevron-left text-sm"></i>
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/40 backdrop-blur text-white flex items-center justify-center active:scale-90 transition-transform">
+            <i className="fas fa-chevron-right text-sm"></i>
+          </button>
+        </>
       )}
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-1.5 px-3 py-1.5 rounded-full glass-effect">

@@ -11,6 +11,7 @@ export interface Product {
     en: string;
   };
   price: number;
+  oldPrice?: number;
   gram: string;
   gramValue: number;
   proba: string;

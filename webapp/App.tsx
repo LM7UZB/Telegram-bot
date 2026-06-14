@@ -17,7 +17,7 @@ import { LoginModal } from './components/LoginModal';
 import { RatesModal } from './components/RatesModal';
 import { isAdminUser, customerInfoText, notifyAdmin, getTelegramUser } from './utils/telegram';
 import { AdminReviewModal } from './components/AdminReviewModal';
-import { fetchApprovedProducts, recordOrder } from './utils/api';
+import { fetchApprovedProducts, recordOrder, updateProduct, reviewProduct } from './utils/api';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Category>('home');
@@ -95,6 +95,25 @@ const App: React.FC = () => {
 
   // Bazadagi + kdoga yozilgan mahsulotlar birgalikda
   const allProducts = useMemo(() => [...dbProducts, ...PRODUCTS], [dbProducts]);
+
+  // Admin: mahsulot narxini o'zgartirish / chegirma (ProductModal ichidan)
+  const handleAdminUpdate = (id: number, fields: any) => {
+    updateProduct(id, fields).then((res) => {
+      if (res.ok && res.products) {
+        setDbProducts(res.products.filter((p: any) => p.status === 'approved'));
+        const updated = res.products.find((p: any) => p.id === id);
+        if (updated) setSelectedProduct(updated);
+      } else {
+        alert(res.error || 'Xatolik');
+      }
+    });
+  };
+  const handleAdminDelete = (id: number) => {
+    reviewProduct(id, 'delete').then((res) => {
+      if (res.ok) { loadProducts(); setSelectedProduct(null); }
+      else alert(res.error || 'Xatolik');
+    });
+  };
 
   const showNotification = (msg: string) => {
     setToast(msg);
@@ -535,7 +554,7 @@ const App: React.FC = () => {
         onProductClick={setSelectedProduct}
       />
       
-      {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} onWishlistToggle={toggleWishlist} onStoreClick={handleStoreSelect} isWishlisted={wishlist.includes(selectedProduct.id)} strings={s} theme={theme} lang={lang} />}
+      {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} onWishlistToggle={toggleWishlist} onStoreClick={handleStoreSelect} isWishlisted={wishlist.includes(selectedProduct.id)} strings={s} theme={theme} lang={lang} isAdmin={isAdmin} onUpdate={handleAdminUpdate} onDelete={handleAdminDelete} />}
       {isFilterOpen && <FilterDrawer isOpen={isFilterOpen} onClose={() => setFilterOpen(false)} filters={filters} setFilters={setFilters} sort={sort} setSort={setSort} strings={s} theme={theme} cat={currentPage === 'silver' ? 'silver' : 'gold'} lang={lang} />}
       {isCheckoutModalOpen && (
         <CheckoutModal 

@@ -42,7 +42,21 @@ export default async function handler(req, res) {
         const m = { ...p };
         if (u.title != null) m.title = { uz: String(u.title), ru: String(u.title), en: String(u.title) };
         if (u.desc != null) m.desc = { uz: String(u.desc), ru: String(u.desc), en: String(u.desc) };
-        if (u.price != null) m.price = Number(u.price) || 0;
+        if (u.price != null) {
+          const newPrice = Number(u.price) || 0;
+          const cur = Number(p.price) || 0;
+          if (newPrice < cur) {
+            // Narx tushdi -> chegirma. Eski (yuqori) narxni ustidan chizish uchun saqlaymiz.
+            m.oldPrice = p.oldPrice && p.oldPrice > cur ? p.oldPrice : cur;
+            m.price = newPrice;
+          } else if (newPrice > cur) {
+            // Narx oshdi -> chegirma olib tashlanadi.
+            m.price = newPrice;
+            delete m.oldPrice;
+          } else {
+            m.price = newPrice;
+          }
+        }
         if (u.gram != null) { m.gram = u.gram ? `${u.gram}`.replace(/g$/i, '') + 'g' : ''; m.gramValue = parseFloat(u.gram) || 0; }
         if (u.proba != null) m.proba = String(u.proba);
         if (u.karat != null) m.karat = String(u.karat);

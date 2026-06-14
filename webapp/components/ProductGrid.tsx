@@ -43,6 +43,12 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ products, onProductCli
                 alt={p.title[lang]} 
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
               />
+              {p.oldPrice && p.oldPrice > p.price && (
+                <div className="absolute top-3 left-3 z-20 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[9px] font-black px-2.5 py-1 rounded-lg shadow-[0_4px_12px_rgba(239,68,68,0.5)] uppercase tracking-wider animate-pulse flex items-center gap-1">
+                  <i className="fas fa-bolt text-[8px]"></i>
+                  -{Math.round((1 - p.price / p.oldPrice) * 100)}%
+                </div>
+              )}
               <button 
                 onClick={(e) => { e.stopPropagation(); onWishlistToggle(p.id); }}
                 className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center active:scale-75 transition-all ${wishlistBtnClass}`}
@@ -63,7 +69,12 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ products, onProductCli
               </button>
               <h3 className={`text-xs font-black truncate ${textColor}`}>{p.title[lang]}</h3>
               <div className="flex justify-between items-center mt-3">
-                <span className="text-[#d4af37] font-black text-base">{p.price} $</span>
+                <div className="flex flex-col leading-none">
+                  {p.oldPrice && p.oldPrice > p.price && (
+                    <span className="text-[10px] text-gray-400 line-through font-bold">{p.oldPrice} $</span>
+                  )}
+                  <span className="text-[#d4af37] font-black text-base">{p.price} $</span>
+                </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); onAddToCart(p, e); }}
                   className="w-10 h-10 rounded-2xl bg-[#d4af37] text-black flex items-center justify-center active:scale-75 transition-all shadow-[0_8px_20px_rgba(212,175,55,0.4)]"
