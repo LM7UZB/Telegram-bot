@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { UIStrings, Language } from '../types';
+import { uploadImage } from '../utils/api';
+
+// Onlayn to'lov tizimlari (karta orqali tanlanganda chiqadi)
+const PAY_SYSTEMS = [
+  { name: 'Payme', url: 'https://payme.uz', color: '#33b9cb' },
+  { name: 'Click', url: 'https://click.uz', color: '#00a3e0' },
+  { name: 'Alif', url: 'https://alif.uz', color: '#33d35e' },
+  { name: 'Paynet', url: 'https://paynet.uz', color: '#f7941e' },
+  { name: 'TBC Bank', url: 'https://tbcbank.uz', color: '#0073c4' },
+  { name: 'Xazna', url: 'https://xazna.uz', color: '#6c5ce7' },
+];
 
 interface CheckoutModalProps {
   onClose: () => void;
@@ -39,6 +50,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Installment fields
   const [selectedMonths, setSelectedMonths] = useState<3 | 6 | 12 | 24>(12);
+
+  // Onlayn to'lov (karta) uchun
+  const [paySystem, setPaySystem] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState('');
+  const [isReceiptUploading, setIsReceiptUploading] = useState(false);
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsReceiptUploading(true);
+    const res = await uploadImage(file);
+    setIsReceiptUploading(false);
+    e.target.value = '';
+    if (res.ok && res.url) {
+      setReceipt(res.url);
+    } else {
+      alert((lang === 'uz' ? 'Chek yuklanmadi: ' : 'Ошибка: ') + (res.error || ''));
+    }
+  };
 
   const VALID_PROMO = "GOLD2025"; 
 
@@ -128,7 +158,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (selectedOption === 'cash') {
       details = `To'lov: Naqd (yetkazib berishda)\n🧾 Ism: ${fullName}\n📞 Tel: ${phone}\n📍 Manzil: ${address}`;
     } else if (selectedOption === 'card') {
-      details = `To'lov: Karta orqali (online)\n💳 Karta egasi: ${cardHolder || '—'}`;
+      details = `To'lov: ${paySystem || 'Karta'} (online)\n🧾 Chek: ${receipt || '—'}\n👤 Ism: ${fullName}\n📞 Tel: ${phone}\n📍 Manzil: ${address}`;
     } else if (selectedOption === 'installment') {
       details = `To'lov: Muddatli (${selectedMonths} oy)\n📆 Oylik: $${installmentDetails.monthly}\n💵 Jami (foiz bilan): $${installmentDetails.total}`;
     }
@@ -402,152 +432,110 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </>
         )}
 
-        {/* Step: Card Details screen */}
+        {/* Step: Online payment systems (Payme, Click, Alif, Paynet, TBC, Xazna) */}
         {step === 'card-details' && (
           <>
             <div className="flex items-center justify-between">
               <button 
-                onClick={() => setStep('select')}
+                onClick={() => { if (paySystem) setPaySystem(null); else setStep('select'); }}
                 className="w-9 h-9 rounded-full bg-white dark:bg-zinc-800 shadow-sm flex items-center justify-center text-gray-500 dark:text-gray-300 hover:scale-105 active:scale-95 transition-all"
               >
                 <i className="fas fa-arrow-left"></i>
               </button>
               <div className="text-right">
                 <h3 className={`text-base font-black ${textColor} uppercase tracking-tight`}>{t.cardTitle}</h3>
-                <p className="text-[9px] text-gray-500 font-extrabold uppercase">{t.cardDesc}</p>
+                <p className="text-[9px] text-gray-500 font-extrabold uppercase">{paySystem || t.cardDesc}</p>
               </div>
             </div>
 
-            {/* 3D Flippable Credit Card Design */}
-            <div className="perspective-[1000px] w-full h-[180px] my-4 group" style={{ perspective: '1000px' }}>
-              <div 
-                onClick={() => setIsCardFlipped(!isCardFlipped)}
-                style={{ 
-                  transformStyle: 'preserve-3d', 
-                  transition: 'transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                  transform: isCardFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
-                }}
-                className="relative w-full h-full cursor-pointer shadow-2xl rounded-2xl"
-              >
-                {/* CARD FRONT SIDE */}
-                <div 
-                  style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-                  className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#111115] via-[#1a1c22] to-[#252a36] text-white p-5 rounded-2xl flex flex-col justify-between border border-white/10 z-10"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="italic font-black text-[#d4af37] text-lg tracking-wider font-sans">TillaBazar</span>
-                    {/* Mastercard symbol */}
-                    <div className="flex">
-                      <div className="w-8 h-8 rounded-full bg-[#eb001b]/90 -mr-3"></div>
-                      <div className="w-8 h-8 rounded-full bg-[#f79e1b]/80"></div>
-                    </div>
-                  </div>
-
-                  <div className="font-mono text-xl text-center font-bold tracking-[0.2em] py-2">
-                    {cardNumber || "•••• •••• •••• ••••"}
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <div className="text-left font-sans">
-                      <p className="text-[8px] text-gray-500 uppercase tracking-widest">{lang === 'uz' ? 'Karta Egasi' : lang === 'ru' ? 'Владелец карты' : 'Card Holder'}</p>
-                      <p className="text-xs font-bold tracking-wider uppercase truncate max-w-[150px]">{cardHolder.toUpperCase() || (lang === 'uz' ? 'ISMINGIZ' : lang === 'ru' ? 'ВАШЕ ИМЯ' : 'YOUR NAME')}</p>
-                    </div>
-                    <div className="text-right font-sans">
-                      <p className="text-[8px] text-gray-500 uppercase tracking-widest">{lang === 'uz' ? 'Amal qiladi' : lang === 'ru' ? 'Срок действия' : 'Expires'}</p>
-                      <p className="text-xs font-bold tracking-wider">{cardExpiry || "MM/YY"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CARD BACK SIDE WITH CVV */}
-                <div 
-                  style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                  className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#111115] via-[#1a1c22] to-[#252a36] text-white p-5 rounded-2xl flex flex-col justify-between border border-white/10"
-                >
-                  <div className="w-full h-10 bg-black -mx-5 mt-2"></div>
-                  
-                  <div className="space-y-1">
-                    <p className="text-[8px] text-gray-500 uppercase text-right tracking-widest">CVV / CVC Code</p>
-                    <div className="w-full bg-white h-9 rounded flex items-center justify-end px-3 font-mono text-black font-extrabold text-base tracking-wider">
-                      {cardCvv || "•••"}
-                    </div>
-                  </div>
-
-                  <p className="text-[8px] text-gray-400 italic font-sans text-center">TillaBazar secure payment network. Tap to flip.</p>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-center text-[10px] text-gray-500 font-bold italic py-1">{t.cardFlipTip}</p>
-
-            {/* Inputs Form */}
-            <div className="space-y-3">
-              <div className={`relative flex items-center ${inputBg} rounded-2xl p-3 border border-transparent focus-within:border-[#d4af37]/20`}>
-                <i className="fas fa-credit-card text-gray-400 w-8 text-center text-sm"></i>
-                <input 
-                  type="text" 
-                  value={cardNumber}
-                  onChange={handleCardNumberChange}
-                  maxLength={19}
-                  placeholder={t.cardNumberPlaceholder}
-                  className="w-full text-sm font-bold bg-transparent outline-none border-none text-white focus:ring-0 placeholder:text-gray-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className={`relative flex items-center ${inputBg} rounded-2xl p-3 border border-transparent focus-within:border-[#d4af37]/20`}>
-                  <i className="fas fa-calendar-alt text-gray-400 w-8 text-center text-sm"></i>
-                  <input 
-                    type="text" 
-                    value={cardExpiry}
-                    onChange={handleCardExpiryChange}
-                    maxLength={5}
-                    placeholder="MM/YY"
-                    className="w-full text-sm font-bold bg-transparent outline-none border-none text-white focus:ring-0 placeholder:text-gray-500"
-                  />
-                </div>
-
-                <div className={`relative flex items-center ${inputBg} rounded-2xl p-3 border border-transparent focus-within:border-[#d4af37]/20`}>
-                  <i className="fas fa-lock text-gray-400 w-8 text-center text-sm"></i>
-                  <input 
-                    type="password" 
-                    value={cardCvv}
-                    onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').substring(0, 3))}
-                    maxLength={3}
-                    placeholder="CVV"
-                    onFocus={() => setIsCardFlipped(true)}
-                    onBlur={() => setIsCardFlipped(false)}
-                    className="w-full text-sm font-bold bg-transparent outline-none border-none text-white focus:ring-0 placeholder:text-gray-500"
-                  />
-                </div>
-              </div>
-
-              <div className={`relative flex items-center ${inputBg} rounded-2xl p-3 border border-transparent focus-within:border-[#d4af37]/20`}>
-                <i className="fas fa-user text-gray-400 w-8 text-center text-sm"></i>
-                <input 
-                  type="text" 
-                  value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-                  placeholder={t.cardHolderPlaceholder}
-                  className="w-full text-sm font-bold bg-transparent outline-none border-none text-white focus:ring-0 placeholder:text-gray-500"
-                />
-              </div>
-            </div>
-
-            {/* Price display and Submit */}
-            <div className="flex items-center justify-between font-sans pt-2">
+            <div className={`${cardBg} rounded-[24px] p-4 flex items-center justify-between font-sans shadow-sm border my-3`}>
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">{t.totalLabel}</span>
               <span className="text-xl font-black text-blue-500">{totalPrice} $</span>
             </div>
 
-            <button 
-              onClick={handleConfirmOrder}
-              disabled={cardNumber.length < 19 || cardExpiry.length < 5 || cardCvv.length < 3 || !cardHolder}
-              className={`w-full py-4 text-white font-black rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all duration-300 ${cardNumber.length < 19 || cardExpiry.length < 5 || cardCvv.length < 3 || !cardHolder ? 'bg-zinc-700/50 text-zinc-500 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 active:scale-95 cursor-pointer shadow-blue-500/10'}`}
-            >
-              <i className="fas fa-lock"></i>
-              <span>{t.payNow} — {totalPrice} $</span>
-            </button>
+            {!paySystem ? (
+              <div className="space-y-3">
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider text-center">
+                  {lang === 'uz' ? "To'lov tizimini tanlang" : lang === 'ru' ? 'Выберите платёжную систему' : 'Choose payment system'}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {PAY_SYSTEMS.map(sys => (
+                    <button
+                      key={sys.name}
+                      onClick={() => {
+                        setPaySystem(sys.name);
+                        if ((window as any).Telegram?.WebApp?.openLink) {
+                          (window as any).Telegram.WebApp.openLink(sys.url);
+                        } else {
+                          window.open(sys.url, '_blank');
+                        }
+                        if ((window as any).Telegram?.WebApp?.HapticFeedback) {
+                          (window as any).Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                        }
+                      }}
+                      className={`${itemBg} border border-transparent hover:border-[#d4af37]/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all`}
+                    >
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-lg" style={{ backgroundColor: sys.color }}>
+                        {sys.name[0]}
+                      </div>
+                      <span className={`text-xs font-black ${textColor}`}>{sys.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-2xl flex gap-2.5 text-left">
+                  <i className="fas fa-info-circle text-blue-400 text-base mt-0.5"></i>
+                  <p className="text-[10px] text-blue-300 font-bold leading-normal">
+                    {lang === 'uz'
+                      ? `${paySystem} orqali to'lovni amalga oshiring, so'ng chekni va ma'lumotlaringizni kiriting.`
+                      : `Оплатите через ${paySystem}, затем загрузите чек и данные.`}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] ml-1 mb-1 block">
+                    {lang === 'uz' ? "To'lov cheki (skrinshot)" : lang === 'ru' ? 'Чек об оплате' : 'Payment receipt'}
+                  </label>
+                  <label className={`block w-full h-32 border-2 border-dashed ${receipt ? 'border-green-500/50 bg-green-500/5' : 'border-[#d4af37]/30 hover:bg-[#d4af37]/5'} rounded-2xl flex items-center justify-center cursor-pointer overflow-hidden`}>
+                    {isReceiptUploading ? (
+                      <i className="fas fa-circle-notch fa-spin text-xl text-[#d4af37]"></i>
+                    ) : receipt ? (
+                      <img src={receipt} referrerPolicy="no-referrer" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="text-center">
+                        <i className="fas fa-receipt text-[#d4af37] text-lg mb-1"></i>
+                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">{lang === 'uz' ? 'Chekni yuklash' : 'Загрузить чек'}</span>
+                      </div>
+                    )}
+                    <input type="file" hidden accept="image/*" onChange={handleReceiptUpload} />
+                  </label>
+                </div>
+
+                <div className={`relative flex items-center ${inputBg} rounded-2xl p-3 border border-transparent focus-within:border-[#d4af37]/20`}>
+                  <i className="fas fa-user text-gray-400 w-8 text-center text-sm"></i>
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t.nameLabel} className="w-full text-sm font-bold bg-transparent outline-none border-none text-white focus:ring-0 placeholder:text-gray-500" />
+                </div>
+                <div className={`relative flex items-center ${inputBg} rounded-2xl p-3 border border-transparent focus-within:border-[#d4af37]/20`}>
+                  <i className="fas fa-phone text-gray-400 w-8 text-center text-sm"></i>
+                  <input type="text" value={phone} onChange={handlePhoneChange} placeholder="+998 XX XXX XX XX" className="w-full text-sm font-bold bg-transparent outline-none border-none text-white focus:ring-0 placeholder:text-gray-500" />
+                </div>
+                <div className={`relative flex items-center ${inputBg} rounded-2xl p-3 border border-transparent focus-within:border-[#d4af37]/20`}>
+                  <i className="fas fa-map-marker-alt text-gray-400 w-8 text-center text-sm"></i>
+                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t.addressLabel} className="w-full text-sm font-bold bg-transparent outline-none border-none text-white focus:ring-0 placeholder:text-gray-500" />
+                </div>
+
+                <button 
+                  onClick={handleConfirmOrder}
+                  disabled={!receipt || !fullName || phone.length < 15 || !address}
+                  className={`w-full py-4 text-white font-black rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all duration-300 ${(!receipt || !fullName || phone.length < 15 || !address) ? 'bg-zinc-700/50 text-zinc-500 cursor-not-allowed shadow-none' : 'bg-[#2ecc71] hover:bg-[#27ae60] active:scale-95 cursor-pointer'}`}
+                >
+                  <i className="fas fa-check-circle"></i>
+                  <span>{t.confirmBtn}</span>
+                </button>
+              </div>
+            )}
           </>
         )}
 
@@ -654,10 +642,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <h2 className={`text-2xl font-black ${textColor} uppercase tracking-tighter`}>
                 {strings.orderAccepted}
               </h2>
+              <p className="text-[#d4af37] font-black text-base">
+                {lang === 'uz' ? 'Xaridingizdan minnatdormiz! 🎉' : lang === 'ru' ? 'Спасибо за покупку! 🎉' : 'Thank you for your purchase! 🎉'}
+              </p>
               <p className={`text-sm font-bold leading-relaxed px-1 ${theme === 'light' ? 'text-gray-600' : 'text-gray-300'}`}>
                 {selectedOption === 'cash' 
                   ? t.successSub + " " + strings.cashSuccess 
-                  : t.successSub + " " + t.installmentAlert
+                  : selectedOption === 'installment'
+                  ? t.successSub + " " + t.installmentAlert
+                  : t.successSub
                 }
               </p>
             </div>
