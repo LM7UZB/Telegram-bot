@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Language, UIStrings, Product, CartItem } from '../types';
-import { ADMIN_TELEGRAM, IMG_API_KEY, PRODUCTS } from '../constants';
-import { fetchMyProducts } from '../utils/api';
+import { ADMIN_TELEGRAM, PRODUCTS } from '../constants';
+import { fetchMyProducts, uploadImage } from '../utils/api';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -106,24 +106,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploading(true);
-    const formData = new FormData();
-    formData.append("image", file);
-    try {
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMG_API_KEY}`, {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTempAccount({ ...tempAccount, avatar: data.data.url });
-        if ((window as any).Telegram?.WebApp?.HapticFeedback) {
-          (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        }
+    const res = await uploadImage(file);
+    setIsUploading(false);
+    if (res.ok && res.url) {
+      setTempAccount({ ...tempAccount, avatar: res.url });
+      if ((window as any).Telegram?.WebApp?.HapticFeedback) {
+        (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
-    } catch (err) {
-      alert("Error uploading avatar");
-    } finally {
-      setIsUploading(false);
+    } else {
+      alert('Rasm yuklanmadi: ' + (res.error || ''));
     }
   };
 

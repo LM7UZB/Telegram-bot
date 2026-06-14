@@ -4,6 +4,7 @@ import { fetchBanners, addBanner, deleteBanner, uploadImage } from '../utils/api
 interface Slide {
   id: number;
   img: string;
+  media?: 'image' | 'video';
   target: { type: 'category' | 'store'; value: string };
 }
 
@@ -45,17 +46,32 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
   const handleAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const isVideo = file.type.startsWith('video');
     setUploading(true);
-    const up = await uploadImage(file);
-    if (up.ok && up.url) {
-      const res = await addBanner(up.url, { type: 'category', value: 'gold' });
+    try {
+      let url = '';
+      if (isVideo) {
+        // Video katta bo'lgani uchun to'g'ridan-to'g'ri Vercel Blob'ga yuklaymiz
+        const { upload } = await import('@vercel/blob/client');
+        const blob = await upload(`banners/${Date.now()}-${file.name}`, file, {
+          access: 'public',
+          handleUploadUrl: '/api/blob-upload',
+        });
+        url = blob.url;
+      } else {
+        const up = await uploadImage(file);
+        if (!up.ok || !up.url) { alert('Rasm yuklanmadi: ' + (up.error || '')); return; }
+        url = up.url;
+      }
+      const res = await addBanner(url, { type: 'category', value: 'gold' }, isVideo ? 'video' : 'image');
       if (res.ok && res.banners) setSlides(res.banners.length ? res.banners : defaultSlides);
       else alert(res.error || 'Xatolik');
-    } else {
-      alert('Rasm yuklanmadi: ' + (up.error || ''));
+    } catch (err) {
+      alert((isVideo ? "Video yuklanmadi (Vercel'da Blob store yarating): " : 'Xatolik: ') + String(err));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
     }
-    setUploading(false);
-    e.target.value = '';
   };
 
   const handleDelete = async (id: number) => {
@@ -74,8 +90,21 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
           onClick={() => onBannerClick(slide.target)}
           className={`absolute inset-0 transition-all duration-1000 ease-in-out ${i === index ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'}`}
         >
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 z-10"></div>
-          <img src={slide.img} referrerPolicy="no-referrer" alt="Promotion" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 z-10 pointer-events-none"></div>
+          {(slide.media === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(slide.img)) ? (
+            <video
+              src={slide.img}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full h-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+            />
+          ) : (
+            <img src={slide.img} referrerPolicy="no-referrer" alt="Promotion" className="w-full h-full object-cover" />
+          )}
         </div>
       ))}
 
@@ -88,7 +117,7 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
             title="Reklama qo'shish"
           >
             {uploading ? <i className="fas fa-circle-notch fa-spin text-sm"></i> : <i className="fas fa-plus text-sm"></i>}
-            <input type="file" hidden accept="image/*" onChange={handleAdd} />
+            <input type="file" hidden accept="image/*,video/*" onChange={handleAdd} />
           </label>
           {slides.length > 0 && slides[index] && (
             <button

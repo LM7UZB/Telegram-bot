@@ -77,6 +77,22 @@ const App: React.FC = () => {
   };
   useEffect(() => { loadProducts(); }, []);
 
+  // Profilni Telegram foydalanuvchisi ma'lumoti bilan to'ldiramiz (har bir akkaunt o'zinikini ko'radi)
+  useEffect(() => {
+    const tg = getTelegramUser();
+    if (!tg) return;
+    setAccount(prev => {
+      if (prev.name && prev.name !== 'Mijoz') return prev; // foydalanuvchi allaqachon o'zgartirgan
+      const fullName = [tg.first_name, (tg as any).last_name].filter(Boolean).join(' ') || prev.name;
+      return {
+        ...prev,
+        name: fullName,
+        username: tg.username ? '@' + tg.username : prev.username,
+        avatar: (tg as any).photo_url || prev.avatar,
+      };
+    });
+  }, []);
+
   // Bazadagi + kdoga yozilgan mahsulotlar birgalikda
   const allProducts = useMemo(() => [...dbProducts, ...PRODUCTS], [dbProducts]);
 

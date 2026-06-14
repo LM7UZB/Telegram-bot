@@ -38,6 +38,7 @@ export default async function handler(req, res) {
       banners.unshift({
         id: Date.now(),
         img: body.img,
+        media: body.media === 'video' ? 'video' : 'image',
         target: body.target || { type: 'category', value: 'gold' },
       });
     } else if (action === 'delete') {
