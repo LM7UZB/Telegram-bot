@@ -16,6 +16,8 @@ import { CheckoutModal } from './components/CheckoutModal';
 import { LoginModal } from './components/LoginModal';
 import { RatesModal } from './components/RatesModal';
 import { isAdminUser, customerInfoText, notifyAdmin } from './utils/telegram';
+import { AdminReviewModal } from './components/AdminReviewModal';
+import { fetchApprovedProducts } from './utils/api';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Category>('home');
@@ -65,6 +67,18 @@ const App: React.FC = () => {
 
   // Joriy foydalanuvchi admin (@LM7_UZB, 147775103) ekanligini aniqlaymiz
   const isAdmin = useMemo(() => isAdminUser(), []);
+
+  // Bazadan tasdiqlangan mahsulotlar (hammaga ko'rinadigan)
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [isAdminPanelOpen, setAdminPanelOpen] = useState(false);
+
+  const loadProducts = () => {
+    fetchApprovedProducts().then(setDbProducts).catch(() => {});
+  };
+  useEffect(() => { loadProducts(); }, []);
+
+  // Bazadagi + kdoga yozilgan mahsulotlar birgalikda
+  const allProducts = useMemo(() => [...dbProducts, ...PRODUCTS], [dbProducts]);
 
   const showNotification = (msg: string) => {
     setToast(msg);
@@ -224,7 +238,7 @@ const App: React.FC = () => {
   };
 
   const displayProducts = useMemo(() => {
-    let res = PRODUCTS.filter(p => !soldProductIds.includes(p.id));
+    let res = allProducts.filter(p => !soldProductIds.includes(p.id));
     if (currentPage === 'gold') res = res.filter(p => p.cat === 'gold');
     if (currentPage === 'silver') res = res.filter(p => p.cat === 'silver');
     if (selectedStore) res = res.filter(p => p.store === selectedStore);
@@ -261,7 +275,7 @@ const App: React.FC = () => {
     if (sort === 'price-desc') res.sort((a, b) => b.price - a.price);
 
     return res;
-  }, [currentPage, soldProductIds, selectedStore, filters, sort, selectedSubcat, searchQuery]);
+  }, [currentPage, soldProductIds, selectedStore, filters, sort, selectedSubcat, searchQuery, allProducts]);
 
   const subcategories = [
     { id: 'all', label: { uz: 'Barchasi', ru: 'Все', en: 'All' }, icon: '✨' },
@@ -434,7 +448,7 @@ const App: React.FC = () => {
 
         {currentPage === 'wishlist' && (
           <div className="p-4">
-            <WishlistPage wishlist={wishlist} allProducts={PRODUCTS} onProductClick={setSelectedProduct} onWishlistToggle={toggleWishlist} onAddToCart={addToCart} strings={s} theme={theme} lang={lang} />
+            <WishlistPage wishlist={wishlist} allProducts={allProducts} onProductClick={setSelectedProduct} onWishlistToggle={toggleWishlist} onAddToCart={addToCart} strings={s} theme={theme} lang={lang} />
           </div>
         )}
       </main>
@@ -512,6 +526,25 @@ const App: React.FC = () => {
       {isSellModalOpen && <SellModal onClose={() => setSellModalOpen(false)} strings={s} theme={theme} account={account} lang={lang} />}
       {isLoginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLogin={setAccount} strings={s} theme={theme} lang={lang} />}
       {isRatesOpen && <RatesModal onClose={() => setIsRatesOpen(false)} theme={theme} lang={lang} isAdmin={isAdmin} />}
+
+      {/* Admin uchun suzuvchi tugma — faqat @LM7_UZB ko'radi */}
+      {isAdmin && (
+        <button
+          onClick={() => setAdminPanelOpen(true)}
+          className="fixed bottom-28 right-4 z-[120] w-14 h-14 rounded-full bg-[#d4af37] text-black shadow-[0_8px_24px_rgba(212,175,55,0.5)] flex items-center justify-center active:scale-90 transition-transform"
+          title="Admin panel"
+        >
+          <i className="fas fa-shield-halved text-lg"></i>
+        </button>
+      )}
+      {isAdminPanelOpen && (
+        <AdminReviewModal
+          onClose={() => setAdminPanelOpen(false)}
+          onChanged={loadProducts}
+          theme={theme}
+          lang={lang}
+        />
+      )}
     </div>
   );
 };

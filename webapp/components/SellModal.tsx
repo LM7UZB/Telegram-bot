@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { UIStrings, Language, UserAccount } from '../types';
 import { IMG_API_KEY, REGIONS } from '../constants';
-import { notifyAdmin, customerInfoText } from '../utils/telegram';
+import { submitProduct } from '../utils/api';
 
 interface SellModalProps {
   onClose: () => void;
@@ -86,12 +86,25 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
     }
 
     const karat = getKarat(form.proba);
-    // Magazin nomi endi accountdan olinadi!
-    const msg = `💎 YANGI MAHSULOT (do'konga qo'shish)\n${customerInfoText()}\n————————————\n🏢 Do'kon: ${account.storeName || 'Rich Emirates'}\n📂 Kategoriya: ${form.cat.toUpperCase()}\n🏷 Nomi: ${form.title}\n💵 Narxi: ${form.price} $\n⚖️ Vazni: ${form.gram} gr\n🔬 Proba: ${form.proba} (${karat})\n📍 Hudud: ${form.location}\n📝 Tavsif: ${form.desc}\n🖼 Rasm: ${form.img}`;
 
-    // Adminga yuboramiz (Vercel /api/notify orqali, server kerak emas).
-    // sendData() ishlatmaymiz, chunki u ilovani darrov yopib yuboradi.
-    notifyAdmin(msg);
+    // Mahsulotni bazaga "kutilmoqda" holatida yuboramiz. Admin tasdiqlagach saytda ko'rinadi.
+    // Server (api/products) avtomatik adminni Telegram orqali xabardor qiladi.
+    submitProduct({
+      cat: form.cat,
+      title: form.title,
+      price: form.price,
+      gram: form.gram,
+      proba: form.proba,
+      karat,
+      desc: form.desc,
+      location: form.location,
+      img: form.img,
+      store: account.storeName || 'Rich Emirates',
+    }).then((res) => {
+      if (!res.ok) {
+        alert((lang === 'uz' ? 'Yuborishda xatolik: ' : 'Ошибка: ') + (res.error || ''));
+      }
+    });
 
     setIsSent(true);
     if ((window as any).Telegram?.WebApp?.HapticFeedback) {
