@@ -62,7 +62,7 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
         (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } else {
-      alert((lang === 'uz' ? "Rasm yuklanmadi: " : "Изображение не загружено: ") + (result.error || ''));
+      alert((lang === 'uz' ? "Rasm yuklanmadi: " : lang === 'ru' ? "Изображение не загружено: " : "Image upload failed: ") + (result.error || ''));
     }
   };
 
@@ -71,11 +71,13 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
       if ((window as any).Telegram?.WebApp?.HapticFeedback) {
         (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('error');
       }
-      alert(lang === 'uz' ? "Iltimos, vaznini, telefon raqamingizni va tilla rasmini kiriting!" : "Пожалуйста, введите вес, номер телефона и фото изделия!");
+      alert(lang === 'uz' ? "Iltimos, vaznini, telefon raqamingizni va tilla rasmini kiriting!" : lang === 'ru' ? "Пожалуйста, введите вес, номер телефона и фото изделия!" : "Please enter the weight, your phone number and a photo of the item!");
       return;
     }
 
-    const typeLabel = userSellForm.metalType === 'gold' ? (lang === 'uz' ? 'Oltin' : 'Золото') : (lang === 'uz' ? 'Kumush' : 'Серебро');
+    const typeLabel = userSellForm.metalType === 'gold'
+      ? (lang === 'uz' ? 'Oltin' : lang === 'ru' ? 'Золото' : 'Gold')
+      : (lang === 'uz' ? 'Kumush' : lang === 'ru' ? 'Серебро' : 'Silver');
     const msg = `#sotiladi\n🔔 BIZGA SOTISH ARIZASI\n${customerInfoText()}\n————————————\n📞 Telefon: ${userSellForm.phone}\n📍 Hudud: ${userSellForm.location}\n⚖️ Buyum og'irligi: ${userSellForm.weight} gr\n💎 Metall: ${typeLabel} (${userSellForm.proba})\n📝 Ma'lumot: ${userSellForm.desc || "Kiritilmagan"}\n🖼 Mahsulot rasmi: ${userSellForm.img}`;
 
     // Adminga yuboramiz (Vercel /api/notify orqali, server kerak emas).

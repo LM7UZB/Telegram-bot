@@ -300,7 +300,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {myProducts.length === 0 ? (
                 <p className="text-[10px] text-gray-500 font-bold text-center py-3">
-                  {lang === 'uz' ? "Hali mahsulot yo'q. \"Sotish\" orqali qo'shing." : 'Пока нет товаров.'}
+                  {lang === 'uz' ? "Hali mahsulot yo'q. \"Sotish\" orqali qo'shing." : lang === 'ru' ? 'Пока нет товаров. Добавьте через «Продать».' : 'No products yet. Add via "Sell".'}
                 </p>
               ) : (
                 <div className="space-y-2 max-h-[240px] overflow-y-auto scrollbar-none">

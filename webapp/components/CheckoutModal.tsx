@@ -66,7 +66,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (res.ok && res.url) {
       setReceipt(res.url);
     } else {
-      alert((lang === 'uz' ? 'Chek yuklanmadi: ' : 'Ошибка: ') + (res.error || ''));
+      alert((lang === 'uz' ? 'Chek yuklanmadi: ' : lang === 'ru' ? 'Ошибка загрузки чека: ' : 'Receipt upload failed: ') + (res.error || ''));
     }
   };
 

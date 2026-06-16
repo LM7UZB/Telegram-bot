@@ -65,7 +65,7 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
     const file = e.target.files?.[0];
     if (!file) return;
     if (form.images.length >= 5) {
-      alert(lang === 'uz' ? "Ko'pi bilan 5 ta rasm yuklash mumkin" : "Максимум 5 фото");
+      alert(lang === 'uz' ? "Ko'pi bilan 5 ta rasm yuklash mumkin" : lang === 'ru' ? "Максимум 5 фото" : "Maximum 5 photos allowed");
       e.target.value = '';
       return;
     }
@@ -113,7 +113,7 @@ export const SellModal: React.FC<SellModalProps> = ({ onClose, strings, theme, a
       store: form.store || account.storeName || 'Rich Emirates',
     }).then((res) => {
       if (!res.ok) {
-        alert((lang === 'uz' ? 'Yuborishda xatolik: ' : 'Ошибка: ') + (res.error || ''));
+        alert((lang === 'uz' ? 'Yuborishda xatolik: ' : lang === 'ru' ? 'Ошибка отправки: ' : 'Submit error: ') + (res.error || ''));
       }
     });
 

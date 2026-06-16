@@ -47,6 +47,7 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
   const [urlMode, setUrlMode] = useState(false);
   const [urlValue, setUrlValue] = useState('');
   const [linkValue, setLinkValue] = useState('');
+  const [playingId, setPlayingId] = useState<number | null>(null); // hozir o'ynayotgan video/YouTube
 
   useEffect(() => {
     fetchBanners()
@@ -56,18 +57,19 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
 
   useEffect(() => {
     if (slides.length <= 1) return;
-    const current = slides[index];
-    const isPlayable = current && (current.media === 'video' || current.media === 'youtube' || /\.(mp4|webm|mov)(\?|$)/i.test(current.img));
-    if (isPlayable) return; // video/YouTube slaydni avtomatik almashtirmaymiz — to'liq tomosha qilinsin
+    if (playingId !== null) return; // video/YouTube o'ynayapti — to'liq tomosha uchun to'xtatamiz
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [slides.length, index]);
+  }, [slides.length, index, playingId]);
 
   useEffect(() => {
     if (index >= slides.length) setIndex(0);
   }, [slides.length, index]);
+
+  // Slayd almashganda o'ynayotgan videoni to'xtatamiz (yana surish ishlasin)
+  useEffect(() => { setPlayingId(null); }, [index]);
 
   const handleAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -165,6 +167,9 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
       {slides.map((slide, i) => {
         const isVideoFile = slide.media === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(slide.img);
         const isYouTube = slide.media === 'youtube';
+        const isPlaying = playingId === slide.id;
+        const ytId = isYouTube ? youtubeId(slide.img) : null;
+        const ytThumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : '';
         return (
           <div
             key={slide.id}
@@ -172,32 +177,70 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
             className={`absolute inset-0 transition-all duration-1000 ease-in-out ${i === index ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'}`}
           >
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 z-10 pointer-events-none"></div>
+
             {isYouTube ? (
-              <iframe
-                src={slide.img}
-                title="YouTube reklama"
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              isPlaying ? (
+                <iframe
+                  src={`${slide.img}?autoplay=1&rel=0&playsinline=1`}
+                  title="YouTube reklama"
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <img src={ytThumb} referrerPolicy="no-referrer" alt="YouTube" className="w-full h-full object-cover" />
+              )
             ) : isVideoFile ? (
-              <video
-                src={slide.img}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-                controls
-              />
+              isPlaying ? (
+                <video
+                  src={slide.img}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  playsInline
+                  controls
+                />
+              ) : (
+                // Poster: birinchi kadr ko'rinadi, lekin touch'ni o'tkazadi (surish ishlasin)
+                <video
+                  src={slide.img}
+                  className="w-full h-full object-cover pointer-events-none"
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+              )
             ) : (
               <img src={slide.img} referrerPolicy="no-referrer" alt="Promotion" className="w-full h-full object-cover" />
             )}
 
-            {/* Tashqi havola tugmasi — video/YouTube ustida ham bosib o'tish uchun */}
-            {slide.link && (
+            {/* Play tugmasi — video/YouTube poster ustida */}
+            {(isYouTube || isVideoFile) && !isPlaying && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setPlayingId(slide.id); }}
+                className="absolute inset-0 z-20 flex items-center justify-center"
+                title="O'ynatish"
+              >
+                <span className="w-16 h-16 rounded-full bg-black/55 backdrop-blur flex items-center justify-center border border-white/30 active:scale-90 transition-transform">
+                  <i className="fas fa-play text-white text-xl ml-1"></i>
+                </span>
+              </button>
+            )}
+
+            {/* Yopish tugmasi — o'ynayotganda; bosilsa yana surish ishlaydi */}
+            {(isYouTube || isVideoFile) && isPlaying && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setPlayingId(null); }}
+                className="absolute top-3 left-3 z-30 w-9 h-9 rounded-full bg-black/60 backdrop-blur text-white border border-white/25 flex items-center justify-center active:scale-90 transition-transform"
+                title="Yopish"
+              >
+                <i className="fas fa-times text-sm"></i>
+              </button>
+            )}
+
+            {/* Tashqi havola tugmasi — bosilganda belgilangan manzilga o'tadi */}
+            {slide.link && !isPlaying && (
               <button
                 onClick={(e) => { e.stopPropagation(); openExternal(slide.link!); }}
                 className="absolute bottom-5 left-5 z-30 px-4 py-2 rounded-full bg-[#d4af37] text-black text-[12px] font-black shadow-lg active:scale-95 transition-transform flex items-center gap-1.5"
