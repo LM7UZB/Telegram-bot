@@ -25,6 +25,8 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
   const [index, setIndex] = useState(0);
   const [slides, setSlides] = useState<Slide[]>(defaultSlides);
   const [uploading, setUploading] = useState(false);
+  const [urlMode, setUrlMode] = useState(false);
+  const [urlValue, setUrlValue] = useState('');
 
   useEffect(() => {
     fetchBanners()
@@ -71,10 +73,37 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
       if (res.ok && res.banners) setSlides(res.banners.length ? res.banners : defaultSlides);
       else alert(res.error || 'Xatolik');
     } catch (err) {
-      alert((isVideo ? "Video yuklanmadi (Vercel'da Blob store yarating): " : 'Xatolik: ') + String(err));
+      alert(
+        (isVideo
+          ? "Video yuklanmadi. Vercel'da Blob store yarating YOKI '\uD83D\uDD17' tugmasi orqali video havolasini qo'shing.\n\n"
+          : 'Xatolik: ') + String(err)
+      );
     } finally {
       setUploading(false);
       e.target.value = '';
+    }
+  };
+
+  // Havola (URL) orqali rasm/video qo'shish — Blob storesiz ham ishlaydi
+  const handleAddUrl = async () => {
+    const url = urlValue.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) { alert("To'g'ri havola kiriting (https://...)"); return; }
+    const isVideo = /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(url);
+    setUploading(true);
+    try {
+      const res = await addBanner(url, { type: 'category', value: 'gold' }, isVideo ? 'video' : 'image');
+      if (res.ok && res.banners) {
+        setSlides(res.banners.length ? res.banners : defaultSlides);
+        setUrlValue('');
+        setUrlMode(false);
+      } else {
+        alert(res.error || 'Xatolik');
+      }
+    } catch (err) {
+      alert('Xatolik: ' + String(err));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -134,11 +163,18 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
           <label
             onClick={(e) => e.stopPropagation()}
             className="w-10 h-10 rounded-full bg-black/60 backdrop-blur text-[#d4af37] border border-[#d4af37]/40 flex items-center justify-center cursor-pointer active:scale-90 transition-transform"
-            title="Reklama qo'shish"
+            title="Reklama qo'shish (rasm/video fayl)"
           >
             {uploading ? <i className="fas fa-circle-notch fa-spin text-sm"></i> : <i className="fas fa-plus text-sm"></i>}
             <input type="file" hidden accept="image/*,video/*" onChange={handleAdd} />
           </label>
+          <button
+            onClick={(e) => { e.stopPropagation(); setUrlMode((v) => !v); }}
+            className="w-10 h-10 rounded-full bg-black/60 backdrop-blur text-[#d4af37] border border-[#d4af37]/40 flex items-center justify-center active:scale-90 transition-transform"
+            title="Havola (URL) orqali qo'shish"
+          >
+            <i className="fas fa-link text-sm"></i>
+          </button>
           {slides.length > 0 && slides[index] && (
             <button
               onClick={(e) => { e.stopPropagation(); handleDelete(slides[index].id); }}
@@ -148,6 +184,31 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
               <i className="fas fa-trash-alt text-sm"></i>
             </button>
           )}
+        </div>
+      )}
+
+      {/* Havola (URL) orqali qo'shish paneli */}
+      {isAdmin && urlMode && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-16 right-3 left-3 z-40 bg-black/80 backdrop-blur-md rounded-2xl p-3 border border-[#d4af37]/30 flex flex-col gap-2"
+        >
+          <p className="text-[10px] text-gray-300">Rasm yoki video havolasini (URL) joylang. Video uchun to'g'ridan-to'g'ri <span className="text-[#d4af37]">.mp4</span> havola bo'lishi kerak.</p>
+          <div className="flex gap-2">
+            <input
+              value={urlValue}
+              onChange={(e) => setUrlValue(e.target.value)}
+              placeholder="https://...mp4"
+              className="flex-1 min-w-0 text-[12px] px-3 py-2 rounded-xl bg-white/10 text-white border border-white/15 placeholder-gray-500"
+            />
+            <button
+              onClick={handleAddUrl}
+              disabled={uploading}
+              className="px-4 py-2 rounded-xl bg-[#d4af37] text-black text-[12px] font-black active:scale-95 transition-transform disabled:opacity-60 whitespace-nowrap"
+            >
+              {uploading ? <i className="fas fa-circle-notch fa-spin"></i> : "Qo'shish"}
+            </button>
+          </div>
         </div>
       )}
 
