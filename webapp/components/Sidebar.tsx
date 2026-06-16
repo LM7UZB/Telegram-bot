@@ -587,7 +587,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <i className="fas fa-arrow-trend-up text-green-500 text-[10px]"></i>
                       <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-wider">
-                        Qimmat sotib oladi ($ sotish)
+                        Sotish
                       </span>
                     </div>
                     <div className="space-y-1.5">
@@ -616,7 +616,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <i className="fas fa-arrow-trend-down text-blue-500 text-[10px]"></i>
                       <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                        Arzon sotadi ($ olish)
+                        Sotib olish
                       </span>
                     </div>
                     <div className="space-y-1.5">
@@ -673,7 +673,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <i className="fas fa-arrow-trend-up text-green-500 text-[10px]"></i>
                         <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-wider">
-                          {lang === 'ru' ? 'Дороже покупают (продать $)' : lang === 'en' ? 'Best to sell your $ (buy)' : "Qimmat sotib oladi ($ sotish)"}
+                          {lang === 'ru' ? 'Продажа' : lang === 'en' ? 'Sell' : 'Sotish'}
                         </span>
                       </div>
                       <div className="space-y-1">
@@ -697,7 +697,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <i className="fas fa-arrow-trend-down text-blue-500 text-[10px]"></i>
                         <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                          {lang === 'ru' ? 'Дешевле продают (купить $)' : lang === 'en' ? 'Best to buy $ (sell)' : "Arzon sotadi ($ olish)"}
+                          {lang === 'ru' ? 'Покупка' : lang === 'en' ? 'Buy' : 'Sotib olish'}
                         </span>
                       </div>
                       <div className="space-y-1">
