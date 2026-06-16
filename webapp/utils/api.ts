@@ -207,6 +207,7 @@ export interface BankRatesResult {
   ok: boolean;
   bestBuy: BankRate[];  // dollarni SOTISH uchun eng yaxshi banklar (eng yuqori sotib olish narxi)
   bestSell: BankRate[]; // dollar SOTIB OLISH uchun eng yaxshi banklar (eng past sotish narxi)
+  source?: string;      // 'bank.uz' (jonli) yoki 'fallback' (taxminiy)
   updatedAt?: string;
 }
 export async function fetchBankRates(): Promise<BankRatesResult> {
@@ -218,6 +219,7 @@ export async function fetchBankRates(): Promise<BankRatesResult> {
         ok: true,
         bestBuy: Array.isArray(data.bestBuy) ? data.bestBuy : [],
         bestSell: Array.isArray(data.bestSell) ? data.bestSell : [],
+        source: data.source,
         updatedAt: data.updatedAt,
       };
     }

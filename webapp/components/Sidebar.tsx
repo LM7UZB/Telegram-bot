@@ -48,10 +48,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const usdUp = usdDiffNum >= 0;
 
   // bank.uz — banklar bo'yicha eng yaxshi USD kurslari
-  const [bankRates, setBankRates] = useState<{ bestBuy: BankRate[]; bestSell: BankRate[] } | null>(null);
+  const [bankRates, setBankRates] = useState<{ bestBuy: BankRate[]; bestSell: BankRate[]; source?: string } | null>(null);
   useEffect(() => {
     fetchBankRates()
-      .then((d) => { if (d.ok && (d.bestBuy.length || d.bestSell.length)) setBankRates({ bestBuy: d.bestBuy, bestSell: d.bestSell }); })
+      .then((d) => { if (d.ok && (d.bestBuy.length || d.bestSell.length)) setBankRates({ bestBuy: d.bestBuy, bestSell: d.bestSell, source: d.source }); })
       .catch(() => {});
   }, []);
 
@@ -504,7 +504,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {lang === 'ru' ? 'ЛУЧШИЕ БАНКИ • USD' : lang === 'en' ? 'BEST BANKS • USD' : 'ENG YAXSHI BANKLAR • USD'}
                   </span>
                 </div>
-                <span className="text-[8px] text-gray-400 font-bold uppercase">bank.uz</span>
+                <span className="text-[8px] text-gray-400 font-bold uppercase">
+                  {bankRates.source === 'fallback'
+                    ? (lang === 'ru' ? 'примерно' : lang === 'en' ? 'approx.' : 'taxminiy')
+                    : 'bank.uz'}
+                </span>
               </div>
 
               {/* Eng yuqori SOTIB OLISH — dollaringizni sotish uchun */}
