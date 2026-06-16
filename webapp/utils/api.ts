@@ -170,12 +170,17 @@ export async function fetchBanners(): Promise<any[]> {
 }
 
 /** Admin: yangi banner qo'shadi. */
-export async function addBanner(img: string, target?: any, media?: 'image' | 'video'): Promise<{ ok: boolean; banners?: any[]; error?: string }> {
+export async function addBanner(
+  img: string,
+  target?: any,
+  media?: 'image' | 'video' | 'youtube',
+  link?: string
+): Promise<{ ok: boolean; banners?: any[]; error?: string }> {
   try {
     const res = await fetch('/api/banners', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
-      body: JSON.stringify({ action: 'add', img, target, media: media || 'image' }),
+      body: JSON.stringify({ action: 'add', img, target, media: media || 'image', link: link || '' }),
     });
     return await res.json();
   } catch (e) {

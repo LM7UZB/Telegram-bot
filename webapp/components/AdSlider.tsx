@@ -4,8 +4,27 @@ import { fetchBanners, addBanner, deleteBanner, uploadImage } from '../utils/api
 interface Slide {
   id: number;
   img: string;
-  media?: 'image' | 'video';
+  media?: 'image' | 'video' | 'youtube';
   target: { type: 'category' | 'store'; value: string };
+  link?: string; // bosilganda ochiladigan tashqi havola (ixtiyoriy)
+}
+
+// YouTube havolasidan video ID ni ajratadi (watch, youtu.be, shorts, embed)
+function youtubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+// Tashqi havolani ochadi (Telegram ichida yoki oddiy brauzerda)
+function openExternal(url: string) {
+  try {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.openTelegramLink && /^https?:\/\/t\.me\//i.test(url)) tg.openTelegramLink(url);
+    else if (tg?.openLink) tg.openLink(url);
+    else window.open(url, '_blank');
+  } catch {
+    window.open(url, '_blank');
+  }
 }
 
 // Bazada banner bo'lmasa ko'rsatiladigan standart rasmlar
@@ -27,6 +46,7 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
   const [uploading, setUploading] = useState(false);
   const [urlMode, setUrlMode] = useState(false);
   const [urlValue, setUrlValue] = useState('');
+  const [linkValue, setLinkValue] = useState('');
 
   useEffect(() => {
     fetchBanners()
@@ -37,8 +57,8 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
   useEffect(() => {
     if (slides.length <= 1) return;
     const current = slides[index];
-    const isVideo = current && (current.media === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(current.img));
-    if (isVideo) return; // video slaydni avtomatik almashtirmaymiz — to'liq tomosha qilinsin
+    const isPlayable = current && (current.media === 'video' || current.media === 'youtube' || /\.(mp4|webm|mov)(\?|$)/i.test(current.img));
+    if (isPlayable) return; // video/YouTube slaydni avtomatik almashtirmaymiz — to'liq tomosha qilinsin
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % slides.length);
     }, 5000);
@@ -69,8 +89,8 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
         if (!up.ok || !up.url) { alert('Rasm yuklanmadi: ' + (up.error || '')); return; }
         url = up.url;
       }
-      const res = await addBanner(url, { type: 'category', value: 'gold' }, isVideo ? 'video' : 'image');
-      if (res.ok && res.banners) setSlides(res.banners.length ? res.banners : defaultSlides);
+      const res = await addBanner(url, { type: 'category', value: 'gold' }, isVideo ? 'video' : 'image', linkValue.trim());
+      if (res.ok && res.banners) { setSlides(res.banners.length ? res.banners : defaultSlides); setLinkValue(''); }
       else alert(res.error || 'Xatolik');
     } catch (err) {
       alert(
@@ -84,18 +104,27 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
     }
   };
 
-  // Havola (URL) orqali rasm/video qo'shish — Blob storesiz ham ishlaydi
+  // Havola (URL) orqali rasm/video/YouTube qo'shish — Blob storesiz ham ishlaydi
   const handleAddUrl = async () => {
     const url = urlValue.trim();
     if (!url) return;
     if (!/^https?:\/\//i.test(url)) { alert("To'g'ri havola kiriting (https://...)"); return; }
-    const isVideo = /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(url);
+    const ytId = youtubeId(url);
+    let media: 'image' | 'video' | 'youtube' = 'image';
+    let mediaUrl = url;
+    if (ytId) {
+      media = 'youtube';
+      mediaUrl = `https://www.youtube.com/embed/${ytId}`;
+    } else if (/\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(url)) {
+      media = 'video';
+    }
     setUploading(true);
     try {
-      const res = await addBanner(url, { type: 'category', value: 'gold' }, isVideo ? 'video' : 'image');
+      const res = await addBanner(mediaUrl, { type: 'category', value: 'gold' }, media, linkValue.trim());
       if (res.ok && res.banners) {
         setSlides(res.banners.length ? res.banners : defaultSlides);
         setUrlValue('');
+        setLinkValue('');
         setUrlMode(false);
       } else {
         alert(res.error || 'Xatolik');
@@ -133,29 +162,52 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
     >
       <div className="absolute inset-0 z-0 bg-white/5 backdrop-blur-sm"></div>
 
-      {slides.map((slide, i) => (
-        <div
-          key={slide.id}
-          onClick={() => onBannerClick(slide.target)}
-          className={`absolute inset-0 transition-all duration-1000 ease-in-out ${i === index ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'}`}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 z-10 pointer-events-none"></div>
-          {(slide.media === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(slide.img)) ? (
-            <video
-              src={slide.img}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full h-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
-              controls
-            />
-          ) : (
-            <img src={slide.img} referrerPolicy="no-referrer" alt="Promotion" className="w-full h-full object-cover" />
-          )}
-        </div>
-      ))}
+      {slides.map((slide, i) => {
+        const isVideoFile = slide.media === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(slide.img);
+        const isYouTube = slide.media === 'youtube';
+        return (
+          <div
+            key={slide.id}
+            onClick={() => { if (slide.link) openExternal(slide.link); else onBannerClick(slide.target); }}
+            className={`absolute inset-0 transition-all duration-1000 ease-in-out ${i === index ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'}`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 z-10 pointer-events-none"></div>
+            {isYouTube ? (
+              <iframe
+                src={slide.img}
+                title="YouTube reklama"
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : isVideoFile ? (
+              <video
+                src={slide.img}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                controls
+              />
+            ) : (
+              <img src={slide.img} referrerPolicy="no-referrer" alt="Promotion" className="w-full h-full object-cover" />
+            )}
+
+            {/* Tashqi havola tugmasi — video/YouTube ustida ham bosib o'tish uchun */}
+            {slide.link && (
+              <button
+                onClick={(e) => { e.stopPropagation(); openExternal(slide.link!); }}
+                className="absolute bottom-5 left-5 z-30 px-4 py-2 rounded-full bg-[#d4af37] text-black text-[12px] font-black shadow-lg active:scale-95 transition-transform flex items-center gap-1.5"
+              >
+                <i className="fas fa-arrow-up-right-from-square text-[10px]"></i> Batafsil
+              </button>
+            )}
+          </div>
+        );
+      })}
 
       {/* Admin boshqaruvi — faqat admin ko'radi */}
       {isAdmin && (
@@ -191,24 +243,33 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
       {isAdmin && urlMode && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-16 right-3 left-3 z-40 bg-black/80 backdrop-blur-md rounded-2xl p-3 border border-[#d4af37]/30 flex flex-col gap-2"
+          className="absolute top-16 right-3 left-3 z-40 bg-black/85 backdrop-blur-md rounded-2xl p-3 border border-[#d4af37]/30 flex flex-col gap-2"
         >
-          <p className="text-[10px] text-gray-300">Rasm yoki video havolasini (URL) joylang. Video uchun to'g'ridan-to'g'ri <span className="text-[#d4af37]">.mp4</span> havola bo'lishi kerak.</p>
-          <div className="flex gap-2">
-            <input
-              value={urlValue}
-              onChange={(e) => setUrlValue(e.target.value)}
-              placeholder="https://...mp4"
-              className="flex-1 min-w-0 text-[12px] px-3 py-2 rounded-xl bg-white/10 text-white border border-white/15 placeholder-gray-500"
-            />
-            <button
-              onClick={handleAddUrl}
-              disabled={uploading}
-              className="px-4 py-2 rounded-xl bg-[#d4af37] text-black text-[12px] font-black active:scale-95 transition-transform disabled:opacity-60 whitespace-nowrap"
-            >
-              {uploading ? <i className="fas fa-circle-notch fa-spin"></i> : "Qo'shish"}
-            </button>
-          </div>
+          <p className="text-[10px] text-gray-300 leading-relaxed">
+            <b className="text-[#d4af37]">Media havolasi:</b> rasm, video (<span className="text-[#d4af37]">.mp4</span>) yoki <span className="text-[#d4af37]">YouTube</span> havolasi.
+          </p>
+          <input
+            value={urlValue}
+            onChange={(e) => setUrlValue(e.target.value)}
+            placeholder="https://...  (rasm / .mp4 / youtube)"
+            className="text-[12px] px-3 py-2 rounded-xl bg-white/10 text-white border border-white/15 placeholder-gray-500"
+          />
+          <p className="text-[10px] text-gray-300 leading-relaxed">
+            <b className="text-[#d4af37]">Bosilganda ochiladigan havola</b> (ixtiyoriy): masalan do'kon joylashuvi yoki Telegram. Bu fayl yuklashga (+) ham qo'llaniladi.
+          </p>
+          <input
+            value={linkValue}
+            onChange={(e) => setLinkValue(e.target.value)}
+            placeholder="https://maps.google.com/...  yoki  https://t.me/..."
+            className="text-[12px] px-3 py-2 rounded-xl bg-white/10 text-white border border-white/15 placeholder-gray-500"
+          />
+          <button
+            onClick={handleAddUrl}
+            disabled={uploading}
+            className="py-2 rounded-xl bg-[#d4af37] text-black text-[12px] font-black active:scale-95 transition-transform disabled:opacity-60"
+          >
+            {uploading ? <i className="fas fa-circle-notch fa-spin"></i> : "Havola orqali qo'shish"}
+          </button>
         </div>
       )}
 

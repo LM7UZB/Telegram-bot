@@ -35,10 +35,12 @@ export default async function handler(req, res) {
     let banners = await kvGetJSON(KEY, []);
     if (action === 'add') {
       if (!body.img) return res.status(400).json({ ok: false, error: "Rasm yo'q" });
+      const media = ['video', 'youtube'].includes(body.media) ? body.media : 'image';
       banners.unshift({
         id: Date.now(),
         img: body.img,
-        media: body.media === 'video' ? 'video' : 'image',
+        media,
+        link: typeof body.link === 'string' ? body.link.trim() : '',
         target: body.target || { type: 'category', value: 'gold' },
       });
     } else if (action === 'delete') {
