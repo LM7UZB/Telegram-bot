@@ -16,6 +16,7 @@ interface SidebarProps {
   onLoginClick: () => void;
   isAdmin?: boolean;
   onAdminPanel?: () => void;
+  onSalesPanel?: () => void;
   strings: UIStrings;
   wishlist: number[];
   onWishlistToggle: (id: number) => void;
@@ -26,7 +27,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, onClose, account, setAccount, theme, setTheme, lang, setLang, onSellClick, onLoginClick, strings,
-  wishlist, onWishlistToggle, cart, onAddToCart, onProductClick, isAdmin = false, onAdminPanel
+  wishlist, onWishlistToggle, cart, onAddToCart, onProductClick, isAdmin = false, onAdminPanel, onSalesPanel
 }) => {
   const [isEditOpen, setEditOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -290,6 +291,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Sotuvchi mahsulotlari + holatlari — faqat sotuvchilar ko'radi */}
         {account.isOwner && !isAdmin && (
           <div className="px-5 mb-4 animate-fade-in">
+            {/* Sotuv paneli tugmasi */}
+            <button
+              onClick={() => onSalesPanel && onSalesPanel()}
+              className="w-full flex items-center justify-between p-4 mb-3 bg-green-500 text-black rounded-[24px] active:scale-95 transition-all shadow-lg shadow-green-500/20"
+            >
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 bg-black/10 rounded-2xl flex items-center justify-center">
+                  <i className="fas fa-store text-lg"></i>
+                </div>
+                <div>
+                  <div className="font-black text-sm uppercase tracking-tight">
+                    {lang === 'ru' ? 'Панель продаж' : lang === 'en' ? 'Sales Panel' : 'Sotuv paneli'}
+                  </div>
+                  <div className="text-[8px] font-black text-black/50 uppercase tracking-widest mt-0.5">
+                    {lang === 'ru' ? 'Статус и продажи товаров' : lang === 'en' ? 'Product status & sales' : 'Mahsulot holati va sotuvlar'}
+                  </div>
+                </div>
+              </div>
+              <i className="fas fa-chevron-right text-sm"></i>
+            </button>
+
             <div className={`${itemBg} rounded-[24px] border p-4 shadow-sm`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#d4af37]">

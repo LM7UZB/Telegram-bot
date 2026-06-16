@@ -264,3 +264,28 @@ export async function clearBankRates(): Promise<{ ok: boolean; error?: string }>
     return { ok: false, error: String(e) };
   }
 }
+
+
+/** Sotuvchi kirganda reestrga yozadi (qachon qo'shilgani uchun). */
+export async function touchSeller(username: string, storeName: string): Promise<void> {
+  try {
+    await fetch('/api/sellers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'touch', username, storeName }),
+    });
+  } catch {
+    /* sukut */
+  }
+}
+
+/** Admin: sotuvchilar (do'kon egalari) ro'yxati. */
+export async function fetchSellers(): Promise<any[]> {
+  try {
+    const res = await fetch('/api/sellers', { headers: { 'X-Telegram-Init-Data': initData() } });
+    const data = await res.json();
+    return data?.ok && Array.isArray(data.sellers) ? data.sellers : [];
+  } catch {
+    return [];
+  }
+}

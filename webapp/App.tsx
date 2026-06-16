@@ -17,7 +17,8 @@ import { LoginModal } from './components/LoginModal';
 import { RatesModal } from './components/RatesModal';
 import { isAdminUser, customerInfoText, notifyAdmin, getTelegramUser } from './utils/telegram';
 import { AdminReviewModal } from './components/AdminReviewModal';
-import { fetchApprovedProducts, recordOrder, updateProduct, reviewProduct } from './utils/api';
+import { SalesPanel } from './components/SalesPanel';
+import { fetchApprovedProducts, recordOrder, updateProduct, reviewProduct, touchSeller } from './utils/api';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Category>('home');
@@ -71,6 +72,15 @@ const App: React.FC = () => {
   // Bazadan tasdiqlangan mahsulotlar (hammaga ko'rinadigan)
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [isAdminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [isSalesPanelOpen, setSalesPanelOpen] = useState(false);
+
+  // Sotuvchi (do'kon egasi) tizimga kirganda reestrga yozamiz
+  const handleLogin = (acc: UserAccount) => {
+    setAccount(acc);
+    if (acc.isOwner && acc.storeName) {
+      touchSeller(acc.username || '', acc.storeName);
+    }
+  };
 
   const loadProducts = () => {
     fetchApprovedProducts().then(setDbProducts).catch(() => {});
@@ -546,6 +556,7 @@ const App: React.FC = () => {
         onLoginClick={() => { setLoginModalOpen(true); setSidebarOpen(false); }}
         isAdmin={isAdmin}
         onAdminPanel={() => { setAdminPanelOpen(true); setSidebarOpen(false); }}
+        onSalesPanel={() => { setSalesPanelOpen(true); setSidebarOpen(false); }}
         strings={s} 
         wishlist={wishlist}
         onWishlistToggle={toggleWishlist}
@@ -573,7 +584,7 @@ const App: React.FC = () => {
         />
       )}
       {isSellModalOpen && <SellModal onClose={() => setSellModalOpen(false)} strings={s} theme={theme} account={account} lang={lang} />}
-      {isLoginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLogin={setAccount} strings={s} theme={theme} lang={lang} />}
+      {isLoginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLogin={handleLogin} strings={s} theme={theme} lang={lang} />}
       {isRatesOpen && <RatesModal onClose={() => setIsRatesOpen(false)} theme={theme} lang={lang} isAdmin={isAdmin} />}
 
       {isAdminPanelOpen && (
@@ -582,6 +593,16 @@ const App: React.FC = () => {
           onChanged={loadProducts}
           theme={theme}
           lang={lang}
+        />
+      )}
+
+      {isSalesPanelOpen && account.isOwner && account.storeName && (
+        <SalesPanel
+          onClose={() => setSalesPanelOpen(false)}
+          storeName={account.storeName}
+          theme={theme}
+          lang={lang}
+          onSellClick={() => { setSalesPanelOpen(false); setSellModalOpen(true); }}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Language } from '../types';
-import { fetchAllProductsAdmin, reviewProduct, updateProduct, fetchOrders } from '../utils/api';
+import { fetchAllProductsAdmin, reviewProduct, updateProduct, fetchOrders, fetchSellers } from '../utils/api';
 
 interface AdminReviewModalProps {
   onClose: () => void;
@@ -23,9 +23,11 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
-  const [section, setSection] = useState<'review' | 'sales'>('review');
+  const [section, setSection] = useState<'review' | 'sales' | 'sellers'>('review');
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [sellersLoaded, setSellersLoaded] = useState(false);
   const todayStr = new Date().toISOString().slice(0, 10);
   const [dateFrom, setDateFrom] = useState(todayStr);
   const [dateTo, setDateTo] = useState(todayStr);
@@ -101,6 +103,33 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
     }
   }, [section, ordersLoaded]);
 
+  // Sotuvchilar bo'limi uchun
+  useEffect(() => {
+    if (section === 'sellers' && !sellersLoaded) {
+      fetchSellers().then((s) => { setSellers(Array.isArray(s) ? s : []); setSellersLoaded(true); });
+    }
+  }, [section, sellersLoaded]);
+
+  // Do'kon (sotuvchi) bo'yicha statistika: nechta mahsulot, holatlar, qachon qo'shilgan
+  const storeNames = Array.from(new Set([
+    ...sellers.map((s) => s.storeName),
+    ...items.map((p) => p.store),
+  ].filter(Boolean)));
+  const storeRows = storeNames.map((name) => {
+    const reg = sellers.find((s) => s.storeName === name);
+    const prods = items.filter((p) => p.store === name);
+    return {
+      name,
+      username: reg?.username || '',
+      firstSeenAt: reg?.firstSeenAt || null,
+      total: prods.length,
+      approved: prods.filter((p) => p.status === 'approved').length,
+      pending: prods.filter((p) => (p.status || 'pending') === 'pending').length,
+      rejected: prods.filter((p) => p.status === 'rejected').length,
+      sold: prods.filter((p) => p.status === 'sold').length,
+    };
+  }).sort((a, b) => b.total - a.total);
+
   const fromTs = new Date(dateFrom + 'T00:00:00').getTime();
   const toTs = new Date(dateTo + 'T23:59:59').getTime();
   const salesInRange = orders.filter((o) => {
@@ -133,6 +162,7 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
         <div className="flex gap-2 px-4 pt-4">
           <button onClick={() => setSection('review')} className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border ${section === 'review' ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-white/10 text-gray-500'}`}>📦 Tasdiqlash</button>
           <button onClick={() => setSection('sales')} className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border ${section === 'sales' ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-white/10 text-gray-500'}`}>📊 Sotuvlar</button>
+          <button onClick={() => setSection('sellers')} className={`flex-1 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border ${section === 'sellers' ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-white/10 text-gray-500'}`}>🏪 Sotuvchilar</button>
         </div>
 
         {section === 'review' && (
@@ -287,6 +317,41 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
             </div>
           </div>
         )}
+        {/* Sotuvchilar (do'kon egalari) */}
+        {section === 'sellers' && (
+          <div className="p-4 space-y-2">
+            {!sellersLoaded ? (
+              <div className="text-center py-12 text-gray-500"><i className="fas fa-circle-notch fa-spin text-2xl text-[#d4af37]"></i></div>
+            ) : storeRows.length === 0 ? (
+              <p className="text-center py-12 text-gray-500 text-xs font-bold uppercase tracking-widest">Sotuvchilar yo'q</p>
+            ) : (
+              storeRows.map((s) => (
+                <div key={s.name} className={`${cardBg} border rounded-2xl p-3`}>
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-black text-[#d4af37] truncate">🏪 {s.name}</h4>
+                      <p className="text-[9px] text-gray-500 font-bold truncate">
+                        {s.username || '—'}
+                        {s.firstSeenAt ? ` · qo'shilgan: ${new Date(s.firstSeenAt).toLocaleDateString('ru-RU')}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right flex-none ml-2">
+                      <p className="text-2xl font-black">{s.total}</p>
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">mahsulot</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className="text-[8px] font-black px-2 py-1 rounded-full bg-green-500/15 text-green-500 uppercase tracking-wider">🟢 Tasdiq: {s.approved}</span>
+                    <span className="text-[8px] font-black px-2 py-1 rounded-full bg-yellow-500/15 text-yellow-500 uppercase tracking-wider">🟡 Kutilmoqda: {s.pending}</span>
+                    <span className="text-[8px] font-black px-2 py-1 rounded-full bg-red-500/15 text-red-500 uppercase tracking-wider">🔴 Rad: {s.rejected}</span>
+                    <span className="text-[8px] font-black px-2 py-1 rounded-full bg-blue-400/15 text-blue-400 uppercase tracking-wider">✅ Sotilgan: {s.sold}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );
