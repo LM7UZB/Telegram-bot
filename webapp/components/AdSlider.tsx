@@ -33,11 +33,15 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
   }, []);
 
   useEffect(() => {
+    if (slides.length <= 1) return;
+    const current = slides[index];
+    const isVideo = current && (current.media === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(current.img));
+    if (isVideo) return; // video slaydni avtomatik almashtirmaymiz — to'liq tomosha qilinsin
     const timer = setInterval(() => {
-      setIndex((prev) => (slides.length ? (prev + 1) % slides.length : 0));
+      setIndex((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, index]);
 
   useEffect(() => {
     if (index >= slides.length) setIndex(0);
@@ -145,17 +149,6 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
             </button>
           )}
         </div>
-      )}
-
-      {slides.length > 1 && (
-        <>
-          <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/40 backdrop-blur text-white flex items-center justify-center active:scale-90 transition-transform">
-            <i className="fas fa-chevron-left text-sm"></i>
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/40 backdrop-blur text-white flex items-center justify-center active:scale-90 transition-transform">
-            <i className="fas fa-chevron-right text-sm"></i>
-          </button>
-        </>
       )}
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-1.5 px-3 py-1.5 rounded-full glass-effect">

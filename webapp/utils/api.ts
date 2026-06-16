@@ -228,3 +228,34 @@ export async function fetchBankRates(): Promise<BankRatesResult> {
     return { ok: false, bestBuy: [], bestSell: [] };
   }
 }
+
+/** Admin: banklar kurslarini qo'lda saqlaydi (faqat admin Telegram ID). */
+export async function saveBankRates(
+  bestBuy: BankRate[],
+  bestSell: BankRate[]
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/bank-rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'save', bestBuy, bestSell }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/** Admin: qo'lda kurslarni o'chiradi (yana jonli bank.uz ga qaytadi). */
+export async function clearBankRates(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/bank-rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'clear' }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}

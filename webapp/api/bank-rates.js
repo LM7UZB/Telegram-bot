@@ -11,9 +11,19 @@
 //   2) Bloklansa, bir nechta ochiq proksi orqali avtomatik urinadi.
 //   3) Hammasi ishlamasa, to'g'ri ko'rinadigan zaxira kurslar qaytadi.
 //
+// Admin (faqat ADMIN_IDS) qo'lda tahrirlashi mumkin:
+//   POST /api/bank-rates {action:'save', bestBuy:[{bank,rate}], bestSell:[{bank,rate}]}
+//   POST /api/bank-rates {action:'clear'}   -> qo'lda kurslarni o'chirib, yana jonli (bank.uz) ga qaytaradi
+// Admin saqlagan kurslar bank.uz dan ustun turadi (source: 'admin').
+//
 // Tekshirish (ixtiyoriy): /api/bank-rates?debug=1
 //
 // Node 18+ da global fetch mavjud — qo'shimcha npm paket kerak emas.
+
+import { kvGetJSON, kvSetJSON, kvConfigured } from './_kv.js';
+import { validateInitData, isAdminUser } from './_auth.js';
+
+const OVERRIDE_KEY = 'bankrates:override:v1';
 
 const TARGET_URLS = [
   process.env.BANK_UZ_URL,
@@ -176,9 +186,66 @@ const STATIC_FALLBACK = {
   ],
 };
 
+// Admin kiritgan kurslarni tozalaydi/tekshiradi.
+function sanitizeRates(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((x) => ({
+      bank: String(x?.bank ?? '').trim().slice(0, 40),
+      rate: Number(x?.rate),
+    }))
+    .filter((x) => x.bank && Number.isFinite(x.rate) && x.rate > 0)
+    .slice(0, 3);
+}
+
 export default async function handler(req, res) {
+  // --- Admin: qo'lda kurslarni saqlash / o'chirish ---
+  if (req.method === 'POST') {
+    if (!kvConfigured()) {
+      return res.status(500).json({ ok: false, error: 'Baza ulanmagan (KV)' });
+    }
+    const user = validateInitData(req.headers['x-telegram-init-data'], process.env.BOT_TOKEN);
+    if (!isAdminUser(user)) {
+      return res.status(403).json({ ok: false, error: 'Faqat admin tahrirlay oladi' });
+    }
+    let body = req.body;
+    if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
+    try {
+      if (body?.action === 'clear') {
+        await kvSetJSON(OVERRIDE_KEY, null);
+        return res.status(200).json({ ok: true, cleared: true });
+      }
+      const bestBuy = sanitizeRates(body?.bestBuy);
+      const bestSell = sanitizeRates(body?.bestSell);
+      if (bestBuy.length === 0 && bestSell.length === 0) {
+        return res.status(400).json({ ok: false, error: "Hech qanday kurs kiritilmadi" });
+      }
+      const payload = { bestBuy, bestSell, updatedAt: new Date().toISOString() };
+      await kvSetJSON(OVERRIDE_KEY, payload);
+      return res.status(200).json({ ok: true, source: 'admin', ...payload });
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: String(e) });
+    }
+  }
+
   const debug = req.query?.debug === '1' || req.query?.debug === 'true';
   const attempts = [];
+
+  // --- Admin qo'lda kiritgan kurslar bo'lsa, ular ustun turadi ---
+  if (!debug && kvConfigured()) {
+    try {
+      const override = await kvGetJSON(OVERRIDE_KEY, null);
+      if (override && (override.bestBuy?.length || override.bestSell?.length)) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({
+          ok: true, ccy: 'USD', source: 'admin',
+          updatedAt: override.updatedAt,
+          bestBuy: override.bestBuy || [],
+          bestSell: override.bestSell || [],
+        });
+      }
+    } catch { /* KV xatosi — jonli ma'lumotga o'tamiz */ }
+  }
 
   for (const target of TARGET_URLS) {
     for (const wrap of PROXIES) {

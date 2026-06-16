@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Language, UIStrings, Product, CartItem } from '../types';
 import { ADMIN_TELEGRAM, PRODUCTS } from '../constants';
-import { fetchMyProducts, uploadImage, fetchBankRates, type BankRate } from '../utils/api';
+import { fetchMyProducts, uploadImage, fetchBankRates, saveBankRates, clearBankRates, type BankRate } from '../utils/api';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -54,6 +54,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
       .then((d) => { if (d.ok && (d.bestBuy.length || d.bestSell.length)) setBankRates({ bestBuy: d.bestBuy, bestSell: d.bestSell, source: d.source }); })
       .catch(() => {});
   }, []);
+
+  // Admin: banklar kursini qo'lda tahrirlash
+  type DraftRate = { bank: string; rate: string };
+  const [editingBank, setEditingBank] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+  const [draftBuy, setDraftBuy] = useState<DraftRate[]>([]);
+  const [draftSell, setDraftSell] = useState<DraftRate[]>([]);
+
+  const pad3 = (list: BankRate[] = []): DraftRate[] => {
+    const rows = list.slice(0, 3).map((r) => ({ bank: r.bank, rate: String(r.rate) }));
+    while (rows.length < 3) rows.push({ bank: '', rate: '' });
+    return rows;
+  };
+  const startEditBank = () => {
+    setDraftBuy(pad3(bankRates?.bestBuy));
+    setDraftSell(pad3(bankRates?.bestSell));
+    setEditingBank(true);
+  };
+  const toRates = (rows: DraftRate[]): BankRate[] =>
+    rows
+      .map((r) => ({ bank: r.bank.trim(), rate: Number(r.rate) }))
+      .filter((r) => r.bank && Number.isFinite(r.rate) && r.rate > 0);
+  const handleSaveBank = async () => {
+    const bestBuy = toRates(draftBuy);
+    const bestSell = toRates(draftSell);
+    if (bestBuy.length === 0 && bestSell.length === 0) { alert('Kamida bitta bank kiriting'); return; }
+    setSavingBank(true);
+    try {
+      const res = await saveBankRates(bestBuy, bestSell);
+      if (res.ok) {
+        setBankRates({ bestBuy, bestSell, source: 'admin' });
+        setEditingBank(false);
+      } else {
+        alert(res.error || 'Saqlanmadi');
+      }
+    } finally {
+      setSavingBank(false);
+    }
+  };
+  const handleClearBank = async () => {
+    if (!confirm("Qo'lda kurslar o'chiriladi va yana jonli (bank.uz) ko'rsatiladi. Davom etamizmi?")) return;
+    setSavingBank(true);
+    try {
+      const res = await clearBankRates();
+      if (res.ok) {
+        setEditingBank(false);
+        const d = await fetchBankRates();
+        if (d.ok) setBankRates({ bestBuy: d.bestBuy, bestSell: d.bestSell, source: d.source });
+      } else {
+        alert(res.error || 'Xatolik');
+      }
+    } finally {
+      setSavingBank(false);
+    }
+  };
 
   // Sotuvchining o'z mahsulotlari (status bilan) — faqat sotuvchilar uchun
   const [myProducts, setMyProducts] = useState<any[]>([]);
@@ -492,7 +547,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* bank.uz — banklar bo'yicha eng yaxshi USD kurslari */}
-        {bankRates && (
+        {(bankRates || isAdmin) && (
           <div className="px-5 mb-5">
             <div className={`${itemBg} rounded-[28px] p-4 border relative overflow-hidden flex flex-col gap-3 shadow-sm`}>
               <div className="flex items-center justify-between">
@@ -504,59 +559,169 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {lang === 'ru' ? 'ЛУЧШИЕ БАНКИ • USD' : lang === 'en' ? 'BEST BANKS • USD' : 'ENG YAXSHI BANKLAR • USD'}
                   </span>
                 </div>
-                <span className="text-[8px] text-gray-400 font-bold uppercase">
-                  {bankRates.source === 'fallback'
-                    ? (lang === 'ru' ? 'примерно' : lang === 'en' ? 'approx.' : 'taxminiy')
-                    : 'bank.uz'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] text-gray-400 font-bold uppercase">
+                    {bankRates?.source === 'admin'
+                      ? (lang === 'ru' ? 'вручную' : lang === 'en' ? 'manual' : "qo'lda")
+                      : bankRates?.source === 'fallback'
+                      ? (lang === 'ru' ? 'примерно' : lang === 'en' ? 'approx.' : 'taxminiy')
+                      : 'bank.uz'}
+                  </span>
+                  {isAdmin && !editingBank && (
+                    <button
+                      onClick={startEditBank}
+                      className="w-6 h-6 rounded-full bg-[#d4af37]/15 text-[#d4af37] flex items-center justify-center active:scale-90 transition-transform"
+                      title="Kurslarni tahrirlash"
+                    >
+                      <i className="fas fa-pen text-[9px]"></i>
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Eng yuqori SOTIB OLISH — dollaringizni sotish uchun */}
-              {bankRates.bestBuy.length > 0 && (
-                <div className="border-t border-gray-100 dark:border-white/5 pt-2.5">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <i className="fas fa-arrow-trend-up text-green-500 text-[10px]"></i>
-                    <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-wider">
-                      {lang === 'ru' ? 'Дороже покупают (продать $)' : lang === 'en' ? 'Best to sell your $ (buy)' : "Qimmat sotib oladi ($ sotish)"}
-                    </span>
+              {/* ===== Admin tahrirlash formasi ===== */}
+              {isAdmin && editingBank ? (
+                <div className="border-t border-gray-100 dark:border-white/5 pt-3 space-y-3">
+                  {/* SOTIB OLISH (yuqori) */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <i className="fas fa-arrow-trend-up text-green-500 text-[10px]"></i>
+                      <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-wider">
+                        Qimmat sotib oladi ($ sotish)
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {draftBuy.map((row, i) => (
+                        <div key={`ebuy-${i}`} className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-gray-400 w-3">{i + 1}.</span>
+                          <input
+                            value={row.bank}
+                            onChange={(e) => setDraftBuy((p) => p.map((r, j) => (j === i ? { ...r, bank: e.target.value } : r)))}
+                            placeholder="Bank nomi"
+                            className={`flex-1 min-w-0 text-[11px] px-2 py-1 rounded-lg border bg-transparent ${textColor} ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}`}
+                          />
+                          <input
+                            value={row.rate}
+                            onChange={(e) => setDraftBuy((p) => p.map((r, j) => (j === i ? { ...r, rate: e.target.value.replace(/[^\d]/g, '') } : r)))}
+                            placeholder="12720"
+                            inputMode="numeric"
+                            className={`w-16 text-[11px] px-2 py-1 rounded-lg border bg-transparent font-mono text-green-600 dark:text-green-400 ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {bankRates.bestBuy.map((b, i) => (
-                      <div key={`buy-${i}`} className="flex items-center justify-between gap-2">
-                        <span className={`text-[11px] font-bold truncate ${textColor}`}>
-                          <span className="text-gray-400 mr-1">{i + 1}.</span>{b.bank}
-                        </span>
-                        <span className="text-[11px] font-black font-mono text-green-600 dark:text-green-400 whitespace-nowrap">
-                          {b.rate.toLocaleString('ru-RU')}
+                  {/* SOTISH (past) */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <i className="fas fa-arrow-trend-down text-blue-500 text-[10px]"></i>
+                      <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                        Arzon sotadi ($ olish)
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {draftSell.map((row, i) => (
+                        <div key={`esell-${i}`} className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-gray-400 w-3">{i + 1}.</span>
+                          <input
+                            value={row.bank}
+                            onChange={(e) => setDraftSell((p) => p.map((r, j) => (j === i ? { ...r, bank: e.target.value } : r)))}
+                            placeholder="Bank nomi"
+                            className={`flex-1 min-w-0 text-[11px] px-2 py-1 rounded-lg border bg-transparent ${textColor} ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}`}
+                          />
+                          <input
+                            value={row.rate}
+                            onChange={(e) => setDraftSell((p) => p.map((r, j) => (j === i ? { ...r, rate: e.target.value.replace(/[^\d]/g, '') } : r)))}
+                            placeholder="12650"
+                            inputMode="numeric"
+                            className={`w-16 text-[11px] px-2 py-1 rounded-lg border bg-transparent font-mono text-blue-600 dark:text-blue-400 ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Tugmalar */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={handleSaveBank}
+                      disabled={savingBank}
+                      className="flex-1 py-2 rounded-xl bg-[#d4af37] text-black text-[11px] font-black active:scale-95 transition-transform disabled:opacity-60"
+                    >
+                      {savingBank ? <i className="fas fa-circle-notch fa-spin"></i> : 'Saqlash'}
+                    </button>
+                    <button
+                      onClick={() => setEditingBank(false)}
+                      disabled={savingBank}
+                      className={`px-3 py-2 rounded-xl text-[11px] font-bold border ${theme === 'light' ? 'border-gray-200 text-gray-600' : 'border-white/10 text-gray-300'}`}
+                    >
+                      Bekor
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleClearBank}
+                    disabled={savingBank}
+                    className="text-[9px] text-gray-400 underline self-start"
+                  >
+                    Jonli (bank.uz) ga qaytarish
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Eng yuqori SOTIB OLISH — dollaringizni sotish uchun */}
+                  {(bankRates?.bestBuy?.length ?? 0) > 0 && (
+                    <div className="border-t border-gray-100 dark:border-white/5 pt-2.5">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <i className="fas fa-arrow-trend-up text-green-500 text-[10px]"></i>
+                        <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-wider">
+                          {lang === 'ru' ? 'Дороже покупают (продать $)' : lang === 'en' ? 'Best to sell your $ (buy)' : "Qimmat sotib oladi ($ sotish)"}
                         </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                      <div className="space-y-1">
+                        {bankRates!.bestBuy.map((b, i) => (
+                          <div key={`buy-${i}`} className="flex items-center justify-between gap-2">
+                            <span className={`text-[11px] font-bold truncate ${textColor}`}>
+                              <span className="text-gray-400 mr-1">{i + 1}.</span>{b.bank}
+                            </span>
+                            <span className="text-[11px] font-black font-mono text-green-600 dark:text-green-400 whitespace-nowrap">
+                              {b.rate.toLocaleString('ru-RU')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-              {/* Eng past SOTISH — dollar sotib olish uchun */}
-              {bankRates.bestSell.length > 0 && (
-                <div className="border-t border-gray-100 dark:border-white/5 pt-2.5">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <i className="fas fa-arrow-trend-down text-blue-500 text-[10px]"></i>
-                    <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                      {lang === 'ru' ? 'Дешевле продают (купить $)' : lang === 'en' ? 'Best to buy $ (sell)' : "Arzon sotadi ($ olish)"}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {bankRates.bestSell.map((b, i) => (
-                      <div key={`sell-${i}`} className="flex items-center justify-between gap-2">
-                        <span className={`text-[11px] font-bold truncate ${textColor}`}>
-                          <span className="text-gray-400 mr-1">{i + 1}.</span>{b.bank}
-                        </span>
-                        <span className="text-[11px] font-black font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                          {b.rate.toLocaleString('ru-RU')}
+                  {/* Eng past SOTISH — dollar sotib olish uchun */}
+                  {(bankRates?.bestSell?.length ?? 0) > 0 && (
+                    <div className="border-t border-gray-100 dark:border-white/5 pt-2.5">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <i className="fas fa-arrow-trend-down text-blue-500 text-[10px]"></i>
+                        <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                          {lang === 'ru' ? 'Дешевле продают (купить $)' : lang === 'en' ? 'Best to buy $ (sell)' : "Arzon sotadi ($ olish)"}
                         </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="space-y-1">
+                        {bankRates!.bestSell.map((b, i) => (
+                          <div key={`sell-${i}`} className="flex items-center justify-between gap-2">
+                            <span className={`text-[11px] font-bold truncate ${textColor}`}>
+                              <span className="text-gray-400 mr-1">{i + 1}.</span>{b.bank}
+                            </span>
+                            <span className="text-[11px] font-black font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                              {b.rate.toLocaleString('ru-RU')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Admin uchun: hali kurs yo'q bo'lsa */}
+                  {isAdmin && !bankRates && (
+                    <p className="text-[10px] text-gray-400 border-t border-gray-100 dark:border-white/5 pt-2.5">
+                      Kurslarni kiritish uchun <i className="fas fa-pen text-[9px] text-[#d4af37]"></i> tugmasini bosing.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
