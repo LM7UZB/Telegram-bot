@@ -196,3 +196,33 @@ export async function deleteBanner(id: number): Promise<{ ok: boolean; banners?:
     return { ok: false, error: String(e) };
   }
 }
+
+
+/** bank.uz dan banklar bo'yicha USD kurslari: eng yuqori sotib olish / eng past sotish. */
+export interface BankRate {
+  bank: string;
+  rate: number;
+}
+export interface BankRatesResult {
+  ok: boolean;
+  bestBuy: BankRate[];  // dollarni SOTISH uchun eng yaxshi banklar (eng yuqori sotib olish narxi)
+  bestSell: BankRate[]; // dollar SOTIB OLISH uchun eng yaxshi banklar (eng past sotish narxi)
+  updatedAt?: string;
+}
+export async function fetchBankRates(): Promise<BankRatesResult> {
+  try {
+    const res = await fetch('/api/bank-rates');
+    const data = await res.json();
+    if (data?.ok) {
+      return {
+        ok: true,
+        bestBuy: Array.isArray(data.bestBuy) ? data.bestBuy : [],
+        bestSell: Array.isArray(data.bestSell) ? data.bestSell : [],
+        updatedAt: data.updatedAt,
+      };
+    }
+    return { ok: false, bestBuy: [], bestSell: [] };
+  } catch {
+    return { ok: false, bestBuy: [], bestSell: [] };
+  }
+}

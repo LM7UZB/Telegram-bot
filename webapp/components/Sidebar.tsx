@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Language, UIStrings, Product, CartItem } from '../types';
 import { ADMIN_TELEGRAM, PRODUCTS } from '../constants';
-import { fetchMyProducts, uploadImage } from '../utils/api';
+import { fetchMyProducts, uploadImage, fetchBankRates, type BankRate } from '../utils/api';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -46,6 +46,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, []);
   const usdDiffNum = usd ? parseFloat(usd.diff) : 0;
   const usdUp = usdDiffNum >= 0;
+
+  // bank.uz — banklar bo'yicha eng yaxshi USD kurslari
+  const [bankRates, setBankRates] = useState<{ bestBuy: BankRate[]; bestSell: BankRate[] } | null>(null);
+  useEffect(() => {
+    fetchBankRates()
+      .then((d) => { if (d.ok && (d.bestBuy.length || d.bestSell.length)) setBankRates({ bestBuy: d.bestBuy, bestSell: d.bestSell }); })
+      .catch(() => {});
+  }, []);
 
   // Sotuvchining o'z mahsulotlari (status bilan) — faqat sotuvchilar uchun
   const [myProducts, setMyProducts] = useState<any[]>([]);
@@ -482,6 +490,73 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         </div>
+
+        {/* bank.uz — banklar bo'yicha eng yaxshi USD kurslari */}
+        {bankRates && (
+          <div className="px-5 mb-5">
+            <div className={`${itemBg} rounded-[28px] p-4 border relative overflow-hidden flex flex-col gap-3 shadow-sm`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center font-bold text-[10px] shadow-inner">
+                    <i className="fas fa-building-columns"></i>
+                  </div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                    {lang === 'ru' ? 'ЛУЧШИЕ БАНКИ • USD' : lang === 'en' ? 'BEST BANKS • USD' : 'ENG YAXSHI BANKLAR • USD'}
+                  </span>
+                </div>
+                <span className="text-[8px] text-gray-400 font-bold uppercase">bank.uz</span>
+              </div>
+
+              {/* Eng yuqori SOTIB OLISH — dollaringizni sotish uchun */}
+              {bankRates.bestBuy.length > 0 && (
+                <div className="border-t border-gray-100 dark:border-white/5 pt-2.5">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <i className="fas fa-arrow-trend-up text-green-500 text-[10px]"></i>
+                    <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-wider">
+                      {lang === 'ru' ? 'Дороже покупают (продать $)' : lang === 'en' ? 'Best to sell your $ (buy)' : "Qimmat sotib oladi ($ sotish)"}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {bankRates.bestBuy.map((b, i) => (
+                      <div key={`buy-${i}`} className="flex items-center justify-between gap-2">
+                        <span className={`text-[11px] font-bold truncate ${textColor}`}>
+                          <span className="text-gray-400 mr-1">{i + 1}.</span>{b.bank}
+                        </span>
+                        <span className="text-[11px] font-black font-mono text-green-600 dark:text-green-400 whitespace-nowrap">
+                          {b.rate.toLocaleString('ru-RU')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Eng past SOTISH — dollar sotib olish uchun */}
+              {bankRates.bestSell.length > 0 && (
+                <div className="border-t border-gray-100 dark:border-white/5 pt-2.5">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <i className="fas fa-arrow-trend-down text-blue-500 text-[10px]"></i>
+                    <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                      {lang === 'ru' ? 'Дешевле продают (купить $)' : lang === 'en' ? 'Best to buy $ (sell)' : "Arzon sotadi ($ olish)"}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {bankRates.bestSell.map((b, i) => (
+                      <div key={`sell-${i}`} className="flex items-center justify-between gap-2">
+                        <span className={`text-[11px] font-bold truncate ${textColor}`}>
+                          <span className="text-gray-400 mr-1">{i + 1}.</span>{b.bank}
+                        </span>
+                        <span className="text-[11px] font-black font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                          {b.rate.toLocaleString('ru-RU')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Settings Widget */}
         <div className="px-5 space-y-4 pb-8">
