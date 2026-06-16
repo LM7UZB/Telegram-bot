@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { REGIONS } from '../constants';
 import { notifyAdmin, customerInfoText } from '../utils/telegram';
-import { uploadImage } from '../utils/api';
+import { uploadImage, fetchMetalRates, saveMetalRates, clearMetalRates } from '../utils/api';
 
 interface MetalRate {
   id: string;
@@ -34,8 +34,44 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
   });
   
   const [isEditing, setIsEditing] = useState(false);
+  const [savingRates, setSavingRates] = useState(false);
   const [calcWeight, setCalcWeight] = useState<string>('');
   const [calcSelected, setCalcSelected] = useState<string>(rates[0]?.id || 'g585');
+
+  // Serverdan narxlarni yuklaymiz (admin / GoldExpert / zaxira) — hammaga bir xil ko'rinadi
+  useEffect(() => {
+    fetchMetalRates()
+      .then((d) => { if (d.ok && Array.isArray(d.rates) && d.rates.length) setRates(d.rates); })
+      .catch(() => {});
+  }, []);
+
+  // Admin: narxlarni serverга saqlaydi (hammaga ko'rinadi)
+  const handleSaveRates = async () => {
+    setSavingRates(true);
+    try {
+      const res = await saveMetalRates(rates);
+      if (!res.ok) { alert(res.error || (lang === 'uz' ? 'Saqlanmadi' : lang === 'ru' ? 'Не сохранено' : 'Not saved')); return; }
+      setIsEditing(false);
+      if ((window as any).Telegram?.WebApp?.HapticFeedback) {
+        (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    } finally {
+      setSavingRates(false);
+    }
+  };
+
+  // Admin: qo'lda narxlarni o'chirib, avtomatik (GoldExpert/zaxira) ga qaytaradi
+  const handleResetRates = async () => {
+    setSavingRates(true);
+    try {
+      await clearMetalRates();
+      const d = await fetchMetalRates();
+      if (d.ok && d.rates.length) setRates(d.rates);
+      setIsEditing(false);
+    } finally {
+      setSavingRates(false);
+    }
+  };
 
   const [isUserSellOpen, setIsUserSellOpen] = useState(false);
   const [userSellForm, setUserSellForm] = useState({
@@ -682,23 +718,17 @@ export const RatesModal: React.FC<RatesModalProps> = ({ onClose, theme, lang, is
           {isEditing ? (
             <>
               <button 
-                onClick={() => {
-                  setIsEditing(false);
-                  if ((window as any).Telegram?.WebApp?.HapticFeedback) {
-                    (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-                  }
-                }}
-                className="flex-1 py-3 px-4 bg-gradient-to-r from-[#d4af37] to-[#e7ca70] text-black rounded-xl font-black text-xs uppercase tracking-wider active:scale-95 transition-all duration-300 shadow-md shadow-[#d4af37]/20"
+                onClick={handleSaveRates}
+                disabled={savingRates}
+                className="flex-1 py-3 px-4 bg-gradient-to-r from-[#d4af37] to-[#e7ca70] text-black rounded-xl font-black text-xs uppercase tracking-wider active:scale-95 transition-all duration-300 shadow-md shadow-[#d4af37]/20 disabled:opacity-60"
               >
-                <i className="fas fa-check mr-1.5"></i>
+                <i className={`fas ${savingRates ? 'fa-circle-notch fa-spin' : 'fa-check'} mr-1.5`}></i>
                 {t.save}
               </button>
               <button 
-                onClick={() => {
-                  setRates(DEFAULT_RATES);
-                  setIsEditing(false);
-                }}
-                className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider active:scale-95 transition-all duration-300 ${
+                onClick={handleResetRates}
+                disabled={savingRates}
+                className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider active:scale-95 transition-all duration-300 disabled:opacity-60 ${
                   theme === 'dark' ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
                 }`}
                 title={t.reset}

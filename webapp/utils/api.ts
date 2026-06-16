@@ -289,3 +289,46 @@ export async function fetchSellers(): Promise<any[]> {
     return [];
   }
 }
+
+
+/** Tilla/kumush narxlari (server orqali: admin / GoldExpert / zaxira). */
+export async function fetchMetalRates(): Promise<{ ok: boolean; rates: any[]; source?: string }> {
+  try {
+    const res = await fetch('/api/metal-rates');
+    const data = await res.json();
+    if (data?.ok && Array.isArray(data.rates)) {
+      return { ok: true, rates: data.rates, source: data.source };
+    }
+    return { ok: false, rates: [] };
+  } catch {
+    return { ok: false, rates: [] };
+  }
+}
+
+/** Admin: tilla/kumush narxlarini saqlaydi (hammaga ko'rinadi). */
+export async function saveMetalRates(rates: any[]): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/metal-rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'save', rates }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+/** Admin: qo'lda narxlarni o'chiradi (yana avtomatik/zaxiraga qaytadi). */
+export async function clearMetalRates(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/metal-rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'clear' }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
