@@ -1,13 +1,16 @@
-// Tilla va kumush narxlari ($/gramm). Ustuvorlik:
-//   1) Admin qo'lda kiritgan narxlar (KV) — doim tahrirlanadi, hammaga ko'rinadi.
-//   2) GoldExpert.uz dan avtomatik (best-effort, so'm->$ konvertatsiya, tilla tishsiz).
-//   3) Zaxira (DEFAULT_RATES).
+// Tilla va kumush narxlari ($/gramm) — JAHON BOZORI spot narxidan hisoblanadi.
 //
-// "arzon narx = sotib olish (buy), qimmat narx = sotish (sell)".
+// Mantiq:
+//   spot (XAU $/untsiya) / 31.1035 = 999 tilla $/gramm
+//   har proba sotish narxi = (spot $/g) * (proba/1000)
+//   sotib olish narxi      = sotish - 10$ (tilla),  sotish - 0.3$ (kumush)
+//   Shanba/Yakshanba (bozor yopiq) — oxirgi saqlangan narx ko'rsatiladi.
+//
+// Ustuvorlik: 1) Admin qo'lda (KV)  2) Jahon bozori (spot)  3) Oxirgi kesh  4) Zaxira
 //
 // Admin:
-//   POST {action:'save', rates:[{id,metal,proba,sellPrice,buyPrice}]}
-//   POST {action:'clear'}   -> qo'lda narxlarni o'chiradi (yana avtomatik/zaxira)
+//   POST {action:'save', rates:[...]}   — qo'lda narx (hammaga ko'rinadi)
+//   POST {action:'clear'}               — qo'lda narxni o'chirib, avtomatikka qaytaradi
 //
 // Tekshirish: /api/metal-rates?debug=1
 
@@ -15,119 +18,110 @@ import { kvGetJSON, kvSetJSON, kvConfigured } from './_kv.js';
 import { validateInitData, isAdminUser } from './_auth.js';
 
 const OVERRIDE_KEY = 'metalrates:override:v1';
+const AUTO_CACHE_KEY = 'metalrates:auto:v1';
+const OZ_TO_GRAM = 31.1034768;
 
-const DEFAULT_RATES = [
-  { id: 'g585', metal: 'gold', proba: '583 / 585', sellPrice: 55, buyPrice: 48 },
-  { id: 'g750', metal: 'gold', proba: '750 (18K)', sellPrice: 72, buyPrice: 63 },
-  { id: 'g916', metal: 'gold', proba: '916 (22K)', sellPrice: 88, buyPrice: 78 },
-  { id: 'g999', metal: 'gold', proba: "999 (Bug'doy)", sellPrice: 96, buyPrice: 87 },
-  { id: 's925', metal: 'silver', proba: '925 (Kumush)', sellPrice: 1.3, buyPrice: 0.9 },
-  { id: 's999', metal: 'silver', proba: '999 (Chorva)', sellPrice: 1.8, buyPrice: 1.3 },
+// Sotib olish marjasi (env bilan moslash mumkin)
+const GOLD_BUY_MARGIN = Number(process.env.METAL_GOLD_BUY_MARGIN) || 10;     // $/g
+const SILVER_BUY_MARGIN = Number(process.env.METAL_SILVER_BUY_MARGIN) || 0.3; // $/g
+
+const GOLD_PROBAS = [
+  { id: 'g585', proba: '583 / 585', factor: 0.585 },
+  { id: 'g750', proba: '750 (18K)', factor: 0.75 },
+  { id: 'g916', proba: '916 (22K)', factor: 0.916 },
+  { id: 'g999', proba: "999 (Bug'doy)", factor: 0.999 },
+];
+const SILVER_PROBAS = [
+  { id: 's925', proba: '925 (Kumush)', factor: 0.925 },
+  { id: 's999', proba: '999 (Chorva)', factor: 0.999 },
 ];
 
-// GoldExpert.uz da qidiriladigan probalar (tilla tish QO'SHILMAYDI)
-const GOLD_PROBAS = ['585', '750', '916', '999'];
-const SILVER_PROBAS = ['925', '999'];
+// Zaxira (spot ham, kesh ham bo'lmasa)
+const DEFAULT_RATES = [
+  { id: 'g585', metal: 'gold', proba: '583 / 585', sellPrice: 81, buyPrice: 71 },
+  { id: 'g750', metal: 'gold', proba: '750 (18K)', sellPrice: 104, buyPrice: 94 },
+  { id: 'g916', metal: 'gold', proba: '916 (22K)', sellPrice: 128, buyPrice: 118 },
+  { id: 'g999', metal: 'gold', proba: "999 (Bug'doy)", sellPrice: 139, buyPrice: 129 },
+  { id: 's925', metal: 'silver', proba: '925 (Kumush)', sellPrice: 1.6, buyPrice: 1.3 },
+  { id: 's999', metal: 'silver', proba: '999 (Chorva)', sellPrice: 1.7, buyPrice: 1.4 },
+];
 
-const BROWSER_HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-  'Accept-Language': 'uz,en;q=0.9,ru;q=0.8',
-  Referer: 'https://goldexpert.uz/',
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Accept: 'application/json, text/plain, */*',
 };
-
 const PROXIES = [
   (u) => u,
   (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
 ];
 
-const TARGET = process.env.GOLDEXPERT_URL || 'https://goldexpert.uz/';
+const round2 = (n) => Math.round(n * 100) / 100;
+const plausibleGoldOz = (n) => Number.isFinite(n) && n > 800 && n < 12000;
+const plausibleSilverOz = (n) => Number.isFinite(n) && n > 3 && n < 300;
 
-function toNum(s) {
-  if (s == null) return NaN;
-  const cleaned = String(s).replace(/\u00a0/g, '').replace(/[^\d.,]/g, '').replace(/\s/g, '');
-  if (!cleaned) return NaN;
-  // so'm formati odatda "850 000" yoki "850000"; nuqta/vergulni tozalaymiz
-  const n = parseFloat(cleaned.replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.'));
-  return Number.isFinite(n) ? n : NaN;
-}
-
-// CBU dan USD kursi (so'm -> $ konvertatsiya uchun)
-async function getUsdRate() {
-  try {
-    const r = await fetch('https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/', { headers: { Accept: 'application/json' } });
-    const data = await r.json();
-    const rate = parseFloat(Array.isArray(data) ? data[0]?.Rate : null);
-    return Number.isFinite(rate) && rate > 1000 ? rate : null;
-  } catch {
-    return null;
-  }
-}
-
-function cleanText(html) {
-  return html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
-}
-
-// Narxni $/g ga keltiradi: katta son (so'm) bo'lsa CBU bo'yicha bo'ladi
-function normalizeToUsd(value, usdRate) {
-  if (!Number.isFinite(value)) return NaN;
-  if (value > 5000) return usdRate ? value / usdRate : NaN; // so'm
-  return value; // allaqachon $
-}
-
-function plausibleUsd(metal, v) {
-  if (!Number.isFinite(v)) return false;
-  return metal === 'gold' ? v >= 20 && v <= 250 : v >= 0.3 && v <= 8;
-}
-
-// GoldExpert HTML/matnidan har proba uchun narx(lar)ni ajratadi
-function parseGoldExpert(text, usdRate) {
-  const flat = cleanText(text);
-  const result = {};
-  const findFor = (metal, proba) => {
-    // proba atrofidagi 0..80 belgidan keyingi 1-2 sonni olamiz
-    const re = new RegExp(`${proba}[^\\d]{0,80}?([\\d .,]{3,})(?:[^\\d]{0,20}?([\\d .,]{3,}))?`, 'i');
-    const m = flat.match(re);
-    if (!m) return null;
-    // "tish"/"зуб" yaqinida bo'lsa o'tkazib yuboramiz
-    const ctx = flat.slice(Math.max(0, m.index - 25), m.index + 25).toLowerCase();
-    if (/tish|зуб|tooth/.test(ctx)) return null;
-    const nums = [normalizeToUsd(toNum(m[1]), usdRate), normalizeToUsd(toNum(m[2]), usdRate)]
-      .filter((n) => plausibleUsd(metal, n));
-    if (nums.length === 0) return null;
-    const buy = Math.min(...nums);
-    const sell = nums.length > 1 ? Math.max(...nums) : Math.round(buy * 1.12 * 100) / 100;
-    return { buy: Math.round(buy * 100) / 100, sell: Math.round(sell * 100) / 100 };
-  };
-  for (const p of GOLD_PROBAS) { const r = findFor('gold', p); if (r) result[`g${p}`] = r; }
-  for (const p of SILVER_PROBAS) { const r = findFor('silver', p); if (r) result[`s${p}`] = r; }
-  return result;
-}
-
-async function fetchGoldExpert() {
+async function fetchJsonAny(url) {
   for (const wrap of PROXIES) {
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
-      const r = await fetch(wrap(TARGET), { headers: BROWSER_HEADERS, redirect: 'follow', signal: ctrl.signal });
+      const timer = setTimeout(() => ctrl.abort(), 7000);
+      const r = await fetch(wrap(url), { headers: HEADERS, redirect: 'follow', signal: ctrl.signal });
       clearTimeout(timer);
       if (!r.ok) continue;
       const text = await r.text();
-      if (text && text.length > 200) return text;
+      try { return JSON.parse(text); } catch { /* keyingi */ }
     } catch { /* keyingi proksi */ }
   }
   return null;
 }
 
-// Avtomatik narxlarni DEFAULT ustiga qo'yadi (topilgan probalar yangilanadi)
-function mergeAuto(base, auto) {
-  return base.map((row) => {
-    const a = auto[row.id];
-    return a ? { ...row, buyPrice: a.buy, sellPrice: a.sell } : row;
+// Jahon bozori spot narxlari ($/untsiya): { gold, silver }
+async function fetchSpot() {
+  // Manba 1: gold-api.com
+  try {
+    const [g, s] = await Promise.all([
+      fetchJsonAny('https://api.gold-api.com/price/XAU'),
+      fetchJsonAny('https://api.gold-api.com/price/XAG'),
+    ]);
+    const gold = Number(g?.price);
+    const silver = Number(s?.price);
+    if (plausibleGoldOz(gold)) return { gold, silver: plausibleSilverOz(silver) ? silver : null, src: 'gold-api.com' };
+  } catch { /* keyingi manba */ }
+
+  // Manba 2: goldprice.org
+  try {
+    const d = await fetchJsonAny('https://data-asg.goldprice.org/dbXRates/USD');
+    const item = d?.items?.[0];
+    const gold = Number(item?.xauPrice);
+    const silver = Number(item?.xagPrice);
+    if (plausibleGoldOz(gold)) return { gold, silver: plausibleSilverOz(silver) ? silver : null, src: 'goldprice.org' };
+  } catch { /* zaxira */ }
+
+  return null;
+}
+
+function computeRates(spot) {
+  const goldPerGram = spot.gold / OZ_TO_GRAM;
+  const rates = GOLD_PROBAS.map((p) => {
+    const sell = Math.round(goldPerGram * p.factor); // tilla — butun $
+    return { id: p.id, metal: 'gold', proba: p.proba, sellPrice: sell, buyPrice: Math.max(0, sell - GOLD_BUY_MARGIN) };
   });
+  if (spot.silver) {
+    const silverPerGram = spot.silver / OZ_TO_GRAM;
+    for (const p of SILVER_PROBAS) {
+      const sell = round2(silverPerGram * p.factor);
+      rates.push({ id: p.id, metal: 'silver', proba: p.proba, sellPrice: sell, buyPrice: Math.max(0, round2(sell - SILVER_BUY_MARGIN)) });
+    }
+  } else {
+    rates.push(...DEFAULT_RATES.filter((r) => r.metal === 'silver'));
+  }
+  return rates;
+}
+
+// Toshkent vaqti bo'yicha dam olish kuni (Shanba/Yakshanba)
+function isWeekend() {
+  const day = new Date(Date.now() + 5 * 3600 * 1000).getUTCDay();
+  return day === 6 || day === 0;
 }
 
 function sanitizeRates(list) {
@@ -158,7 +152,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true, cleared: true });
       }
       const rates = sanitizeRates(body?.rates);
-      if (rates.length === 0) return res.status(400).json({ ok: false, error: 'Narxlar bo\'sh' });
+      if (rates.length === 0) return res.status(400).json({ ok: false, error: "Narxlar bo'sh" });
       const payload = { rates, updatedAt: new Date().toISOString() };
       await kvSetJSON(OVERRIDE_KEY, payload);
       return res.status(200).json({ ok: true, source: 'admin', ...payload });
@@ -169,7 +163,7 @@ export default async function handler(req, res) {
 
   const debug = req.query?.debug === '1' || req.query?.debug === 'true';
 
-  // 1) Admin override
+  // 1) Admin qo'lda kiritgan narxlar (ustuvor)
   if (!debug && kvConfigured()) {
     try {
       const ov = await kvGetJSON(OVERRIDE_KEY, null);
@@ -180,25 +174,35 @@ export default async function handler(req, res) {
     } catch { /* davom */ }
   }
 
-  // 2) GoldExpert.uz (best-effort)
+  const cached = kvConfigured() ? await kvGetJSON(AUTO_CACHE_KEY, null).catch(() => null) : null;
+
+  // 2) Dam olish kuni — oxirgi saqlangan narxni ko'rsatamiz (bozor yopiq)
+  if (!debug && isWeekend() && cached && Array.isArray(cached.rates) && cached.rates.length) {
+    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+    return res.status(200).json({ ok: true, source: 'market-weekend', updatedAt: cached.updatedAt, rates: cached.rates });
+  }
+
+  // 3) Jahon bozori spot narxi
   try {
-    const [html, usdRate] = await Promise.all([fetchGoldExpert(), getUsdRate()]);
-    if (html) {
-      const auto = parseGoldExpert(html, usdRate);
-      if (debug) {
-        return res.status(200).json({ ok: true, debug: true, usdRate, parsed: auto, snippet: cleanText(html).slice(0, 1500) });
-      }
-      if (Object.keys(auto).length > 0) {
-        res.setHeader('Cache-Control', 's-maxage=43200, stale-while-revalidate=86400'); // 12 soat
-        return res.status(200).json({ ok: true, source: 'goldexpert', updatedAt: new Date().toISOString(), rates: mergeAuto(DEFAULT_RATES, auto) });
-      }
+    const spot = await fetchSpot();
+    if (spot) {
+      const rates = computeRates(spot);
+      const payload = { rates, updatedAt: new Date().toISOString(), spot };
+      if (kvConfigured()) { try { await kvSetJSON(AUTO_CACHE_KEY, payload); } catch { /* keshlamasa ham mayli */ } }
+      if (debug) return res.status(200).json({ ok: true, debug: true, source: spot.src, spot, goldPerGram: round2(spot.gold / OZ_TO_GRAM), rates });
+      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400'); // 1 soat
+      return res.status(200).json({ ok: true, source: 'market', updatedAt: payload.updatedAt, rates });
     }
-    if (debug) return res.status(200).json({ ok: false, debug: true, note: 'GoldExpert ochilmadi yoki parse bo\'sh', usdRate });
+    if (debug) return res.status(200).json({ ok: false, debug: true, note: 'spot narx olinmadi', cached });
   } catch (e) {
     if (debug) return res.status(200).json({ ok: false, debug: true, error: String(e) });
   }
 
-  // 3) Zaxira
-  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1800');
+  // 4) Oxirgi kesh, bo'lmasa zaxira
+  if (cached && Array.isArray(cached.rates) && cached.rates.length) {
+    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
+    return res.status(200).json({ ok: true, source: 'market-cached', updatedAt: cached.updatedAt, rates: cached.rates });
+  }
+  res.setHeader('Cache-Control', 's-maxage=300');
   return res.status(200).json({ ok: true, source: 'fallback', updatedAt: new Date().toISOString(), rates: DEFAULT_RATES });
 }
