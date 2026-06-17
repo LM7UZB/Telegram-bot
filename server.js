@@ -36,8 +36,11 @@ app.get('/health', (_req, res) => res.json({ ok: true, status: 'running' }));
 
 app.use(express.static(distDir));
 
-// SPA fallback — barcha yo'llar uchun index.html
+// SPA fallback — barcha yo'llar uchun index.html (HECH QACHON keshlanmaydi — yangi deploy darrov ko'rinadi)
 app.get('*', (_req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   res.sendFile(path.join(distDir, 'index.html'), (err) => {
     if (err) {
       res
