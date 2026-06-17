@@ -350,7 +350,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Interactive Accordion Menus (My Orders & Favorites inside Profile menu) */}
         <div className="px-5 mb-4 space-y-3 animate-fade-in">
           
-          {/* Buyurtmalarim Section */}
+          {/* Buyurtmalarim Section — faqat mijozlar uchun (sotuvchi panelida ko'rsatilmaydi) */}
+          {!account.isOwner && (
           <div className={`${itemBg} rounded-[24px] border overflow-hidden shadow-sm transition-all`}>
             <button 
               onClick={() => {
@@ -406,6 +407,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* Sevimlilarim Section */}
           <div className={`${itemBg} rounded-[24px] border overflow-hidden shadow-sm transition-all`}>
