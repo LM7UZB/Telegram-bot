@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     });
 
     const menu = await api('setChatMenuButton', {
-      menu_button: { type: 'web_app', text: "Do'kon", web_app: { url: base } },
+      menu_button: { type: 'web_app', text: "Do'kon", web_app: { url: `${base}/?v=${Date.now()}` } },
     });
 
     const commands = await api('setMyCommands', {

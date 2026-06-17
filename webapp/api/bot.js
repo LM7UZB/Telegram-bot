@@ -54,7 +54,7 @@ export default async function handler(req, res) {
           chat_id: chatId,
           text: WELCOME(name),
           reply_markup: {
-            inline_keyboard: [[{ text: "💍 TillaBazar'ni ochish", web_app: { url: WEBAPP_URL } }]],
+            inline_keyboard: [[{ text: "💍 TillaBazar'ni ochish", web_app: { url: `${WEBAPP_URL}/?v=${Date.now()}` } }]],
           },
         });
       }
