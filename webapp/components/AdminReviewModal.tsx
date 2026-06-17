@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Language } from '../types';
-import { fetchAllProductsAdmin, reviewProduct, updateProduct, fetchOrders, fetchSellers } from '../utils/api';
+import { fetchAllProductsAdmin, reviewProduct, updateProduct, fetchOrders, fetchSellers, resetSales } from '../utils/api';
 
 interface AdminReviewModalProps {
   onClose: () => void;
@@ -73,6 +73,20 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleResetSales = async () => {
+    if (!confirm("Barcha sotuv va buyurtma ma'lumotlari 0 ga tushiriladi (test ma'lumoti tozalanadi). Davom etamizmi?")) return;
+    const res = await resetSales();
+    if (res.ok) {
+      setOrders([]);
+      setOrdersLoaded(false);
+      await load();
+      onChanged();
+      alert("Tozalandi — barcha sotuvlar 0 ga tushdi.");
+    } else {
+      alert(res.error || 'Xatolik');
+    }
+  };
 
   const act = async (id: number, action: 'approve' | 'reject' | 'delete') => {
     setBusyId(id);
@@ -275,6 +289,12 @@ export const AdminReviewModal: React.FC<AdminReviewModalProps> = ({ onClose, onC
         {/* Sotuvlar / Statistika */}
         {section === 'sales' && (
           <div className="p-4 space-y-4">
+            <button
+              onClick={handleResetSales}
+              className="w-full py-3 rounded-2xl border border-red-500/40 bg-red-500/10 text-red-400 text-[11px] font-black uppercase tracking-wider active:scale-95 transition-transform"
+            >
+              <i className="fas fa-trash-alt mr-1.5"></i> Sotuvlarni 0 ga tushirish (test ma'lumotini tozalash)
+            </button>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1">Sanadan</label>

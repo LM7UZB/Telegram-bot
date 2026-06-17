@@ -27,6 +27,17 @@ function openExternal(url: string) {
   }
 }
 
+// Havolani chiroyli ko'rsatish (https:// va www siz, qisqartirilgan)
+function linkLabel(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = u.pathname && u.pathname !== '/' ? u.pathname : '';
+    return (u.host + path).replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+  }
+}
+
 // Bazada banner bo'lmasa ko'rsatiladigan standart rasmlar
 const defaultSlides: Slide[] = [
   { id: 1, img: "https://images.unsplash.com/photo-1599643478518-17488fbbcd75?auto=format&fit=crop&q=80&w=1200", target: { type: 'store', value: 'LM Gold' } },
@@ -239,13 +250,15 @@ export const AdSlider: React.FC<AdSliderProps> = ({ onBannerClick, isAdmin = fal
               </button>
             )}
 
-            {/* Tashqi havola tugmasi — bosilganda belgilangan manzilga o'tadi */}
+            {/* Havola yorlig'i — rasm ostida ko'rinadi, bosilganda o'sha URL ochiladi */}
             {slide.link && !isPlaying && (
               <button
                 onClick={(e) => { e.stopPropagation(); openExternal(slide.link!); }}
-                className="absolute bottom-5 left-5 z-30 px-4 py-2 rounded-full bg-[#d4af37] text-black text-[12px] font-black shadow-lg active:scale-95 transition-transform flex items-center gap-1.5"
+                className="absolute bottom-4 left-4 z-30 max-w-[62%] px-3 py-2 rounded-xl bg-black/65 backdrop-blur border border-white/15 text-white flex items-center gap-2 active:scale-95 transition-transform shadow-lg"
               >
-                <i className="fas fa-arrow-up-right-from-square text-[10px]"></i> Batafsil
+                <i className="fas fa-link text-[#d4af37] text-[11px] flex-none"></i>
+                <span className="text-[11px] font-bold truncate text-left">{linkLabel(slide.link)}</span>
+                <i className="fas fa-arrow-up-right-from-square text-white/60 text-[10px] flex-none"></i>
               </button>
             )}
           </div>

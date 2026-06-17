@@ -28,6 +28,22 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
+
+  // Admin: barcha sotuv/buyurtma ma'lumotini 0 ga tushirish (test ma'lumotini tozalash)
+  if (body?.action === 'reset') {
+    const user = validateInitData(req.headers['x-telegram-init-data'], process.env.BOT_TOKEN);
+    if (!isAdminUser(user)) return res.status(403).json({ ok: false, error: 'Faqat admin' });
+    try {
+      await kvSetJSON(ORDERS, []);
+      let all = await kvGetJSON(KEY, []);
+      all = all.map((p) => (p.status === 'sold' ? { ...p, status: 'approved', soldAt: null } : p));
+      await kvSetJSON(KEY, all);
+      return res.status(200).json({ ok: true, reset: true });
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: String(e) });
+    }
+  }
+
   const ids = Array.isArray(body?.ids) ? body.ids.map(Number) : [];
 
   try {

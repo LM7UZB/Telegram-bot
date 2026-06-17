@@ -582,13 +582,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[8px] text-gray-400 font-bold uppercase">
-                    {bankRates?.source === 'admin'
-                      ? (lang === 'ru' ? 'вручную' : lang === 'en' ? 'manual' : "qo'lda")
-                      : bankRates?.source === 'fallback'
-                      ? (lang === 'ru' ? 'примерно' : lang === 'en' ? 'approx.' : 'taxminiy')
-                      : 'bank.uz'}
-                  </span>
                   {isAdmin && !editingBank && (
                     <button
                       onClick={startEditBank}

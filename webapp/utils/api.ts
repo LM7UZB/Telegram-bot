@@ -332,3 +332,18 @@ export async function clearMetalRates(): Promise<{ ok: boolean; error?: string }
     return { ok: false, error: String(e) };
   }
 }
+
+
+/** Admin: barcha sotuv/buyurtma ma'lumotini 0 ga tushiradi (test ma'lumotini tozalash). */
+export async function resetSales(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData() },
+      body: JSON.stringify({ action: 'reset' }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
